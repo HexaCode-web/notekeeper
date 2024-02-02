@@ -1,0 +1,233 @@
+body {
+  width: 100% !important;
+  height: 100vh;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 96% !important;
+  margin-top: 34px;
+  padding-left: 20px;
+  margin-left: 70px;
+  overflow-x: hidden;
+  height: 100% !important;
+}
+.container h1 {
+  font-size: 2rem;
+}
+
+.General p {
+  font-size: 1rem;
+}
+.General {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.new-note-body.textarea {
+  height: fit-content !important;
+}
+.General .Note {
+  width: 50vw;
+}
+.Updates {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 90%;
+  height: 90%;
+  margin: auto;
+}
+.ChecksWrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.CheckWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.2rem;
+  margin: 5px 0;
+}
+.CheckWrapper input {
+  height: 15px;
+  width: 15px;
+}
+.Save-Wrapper {
+  position: static;
+  display: flex;
+  justify-content: center;
+  transition: 0.5s all;
+}
+.Save-Wrapper.Active {
+  backdrop-filter: blur(10px);
+  position: fixed;
+  bottom: 0px;
+  padding-bottom: 10px;
+  right: 38%;
+}
+.container .button {
+  background-color: transparent;
+  border: 1px solid #8f54a0;
+  height: 40px;
+  width: 190px;
+  transition: 0.2s all;
+  font-size: 1.2rem;
+  cursor: pointer;
+  border-radius: 10px;
+  scale: 1;
+}
+.sideBar {
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  height: 100vh;
+  width: 40px;
+  position: fixed;
+  left: 0;
+  background-color: #8f54a0;
+  color: white;
+  box-shadow: rgba(0, 0, 0, 0.35) 0px 3px 10px;
+}
+.container .button:hover {
+  border: 2px solid #8f54a0;
+}
+.container .button:active {
+  scale: 0.9;
+}
+
+.Note.Drag {
+  flex-direction: row;
+  display: flex;
+  padding: 0;
+  min-height: 45px;
+  padding-left: 20px;
+  justify-content: unset;
+  align-items: center;
+}
+.Note.Drag p {
+  width: 22%;
+}
+.Note.Drag .text-wrapper {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 68%;
+}
+.reorderCheckBox {
+  width: fit-content;
+  margin: 10px auto;
+}
+.reorderCheckBox label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  width: 400px;
+  align-items: center;
+}
+.reorderCheckBox label span {
+  font-size: 1rem;
+}
+.Dashboard {
+  width: 100%;
+}
+.Dashboard .button-wrapper {
+  position: static;
+  padding: 0;
+  width: 100%;
+  gap: 10px;
+}
+.Dashboard .button {
+  height: 25px;
+  width: 70px;
+}
+.Dashboard .button.danger {
+  border: 2px solid red;
+}
+.Dashboard .validation {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 70%;
+  margin: 0 auto;
+  gap: 10px;
+}
+.Dashboard .validation button {
+  border-radius: 5px;
+  width: fit-content;
+  height: 30px;
+}
+.NotesPage {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  justify-content: space-between;
+  width: 98%;
+  margin: auto 0;
+  display: flex;
+}
+.NotesWrapper {
+  width: 56%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+.NotesPage .Right {
+  width: 40%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 30px;
+}
+.NotesPage .Right .Search {
+  margin: 0;
+}
+.AddNote-Wrapper {
+  border: 1px solid #8f54a0;
+  border-radius: 15px;
+  width: 86%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
+  min-height: 300px;
+  height: fit-content;
+  gap: 20px;
+  position: relative;
+}
+.AddNote-Wrapper h2 {
+  font-size: 2rem;
+  position: absolute;
+  background-color: white;
+  top: -38px;
+  left: 30%;
+}
+.AddNote-Wrapper textarea {
+  max-width: 110%;
+  height: 100px;
+}
+.AddNote-Wrapper .button {
+  position: absolute;
+  bottom: 0px;
+  border-bottom: 1px solid transparent !important;
+  left: 30%;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
