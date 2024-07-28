@@ -86,21 +86,17 @@ export default function Main(props) {
         onChangeFunction={handleInput}
       />
       <div className="button-wrapper">
-        <button
-          className="bn632-hover bn24"
-          onClick={handleSignup}
-          style={{ minWidth: "105px" }}
-        >
+        <button className="bn632-hover bn24" onClick={handleSignup}>
           Sign up
         </button>
-        <button
-          class="bn632-hover bn28"
+        <p
           onClick={() => {
             props.setActivePage("welcome");
           }}
         >
-          Return
-        </button>
+          already have an account?
+          <span className="gradient-text"> Login now</span>
+        </p>
       </div>
     </form>
   );

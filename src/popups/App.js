@@ -62,41 +62,9 @@ const App = () => {
         <Main />
       ) : (
         <div style={{ width: "100%" }}>
-          {ActivePage === "welcome" ? (
-            <>
-              <div className="loginPage">
-                <div
-                  className="bn632-hover bn24"
-                  onClick={() => {
-                    setActivePage("LOGIN");
-                  }}
-                >
-                  login
-                </div>
-                <div
-                  className="bn632-hover bn23"
-                  onClick={() => {
-                    setActivePage("SIGNUP");
-                  }}
-                >
-                  Signup
-                </div>
-              </div>
-            </>
-          ) : (
-            ""
-          )}
-          {ActivePage === "APP" ? <Main /> : ""}
-          {ActivePage === "LOGIN" ? (
-            <LOGIN setActivePage={setActivePage} />
-          ) : (
-            ""
-          )}
-          {ActivePage === "SIGNUP" ? (
-            <SIGNUP setActivePage={setActivePage} />
-          ) : (
-            ""
-          )}
+          {ActivePage === "welcome" && <LOGIN setActivePage={setActivePage} />}
+          {ActivePage === "APP" && <Main />}
+          {ActivePage === "SIGNUP" && <SIGNUP setActivePage={setActivePage} />}
         </div>
       )}
     </>
