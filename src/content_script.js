@@ -1,4 +1,29 @@
 import { differenceInSeconds } from "date-fns";
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR DECIDING THE FUNCTION TO USE
+//--------------------------------------------------------------------------------------------------------------------------------------------
+var currentUrl = window.location.href;
+document.addEventListener("DOMContentLoaded", () => {
+  if (currentUrl.includes("bakeoffice")) {
+    startCheckingForElement("#orderId", (mutationsList, observer) => {
+      PDTCalc();
+      collectAndLogCustomerNumbers();
+      saveOrder();
+    });
+  }
+  if (currentUrl.includes("logisticsbackoffice")) {
+    retrieveAndLogOrders();
+    cleanupExpiredOrders();
+  }
+  if (currentUrl.includes("herocare")) {
+    setInterval(BreaksTimer, 1000);
+  }
+});
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR SHORTCUT FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
+let Notes; // Declare the Notes variable outside the function to make it accessible globally
+
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   const focusedElement = document.activeElement;
   if (
@@ -120,7 +145,6 @@ function getDistanceToBottomOfScreen(focusedElement) {
   const distanceToBottom = viewportHeight - elementRect.bottom;
   return distanceToBottom;
 }
-let Notes; // Declare the Notes variable outside the function to make it accessible globally
 
 const RenderNotesList = async (event) => {
   const focusedElement = document.activeElement;
@@ -244,7 +268,9 @@ const onClickInsert = (Note) => {
 };
 
 document.addEventListener("keydown", handleKeyboardInput, true);
-//TIMER
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR BREAKS TIME FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
 let timeConsumed = null;
 let diffSeconds = null;
 let StoredTimer = await chrome.storage.sync.get(["Timer"]);
@@ -261,8 +287,6 @@ function formatTime(seconds) {
     remainingSeconds
   ).padStart(2, "0")}`;
 }
-
-// This function runs every second
 
 const BreaksTimer = async () => {
   const CurrentDate = new Date();
@@ -368,7 +392,9 @@ const BreaksTimer = async () => {
     console.log(".ant-badge-status-text not found");
   }
 };
-
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR PDTCalc FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
 function PDTCalc() {
   const initialElement = document.querySelector(
     '[ng-show="order.postDatedTime>0"]'
@@ -513,7 +539,43 @@ function addMinutesToTime(timeStr, minutesToAdd, buffer) {
   };
   return date.toLocaleTimeString([], options);
 }
+function observeElement(selector, callback) {
+  const targetNode = document.querySelector(selector);
 
+  if (!targetNode) {
+    console.error(`Element with selector "${selector}" not found.`);
+    return;
+  }
+
+  const config = {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    characterData: true,
+  };
+
+  const observerCallback = function (mutationsList, observer) {
+    callback(mutationsList, observer);
+  };
+
+  const observer = new MutationObserver(observerCallback);
+
+  observer.observe(targetNode, config);
+}
+function startCheckingForElement(selector, callback) {
+  const interval = 1000;
+
+  const checkInterval = setInterval(() => {
+    const targetNode = document.querySelector(selector);
+    if (targetNode) {
+      clearInterval(checkInterval);
+      observeElement(selector, callback);
+    }
+  }, interval);
+}
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR LATE OWNER FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
 function getActionCreationTime() {
   // Select all rows in the table
   const rows = document.querySelectorAll("tbody tr");
@@ -644,61 +706,10 @@ function compareTimes(dateTimeStr, timeStr) {
     console.error('Element with id "updatedTimeRow" not found.');
   }
 }
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR CUSTOMER NUMBER FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
 
-function observeElement(selector, callback) {
-  const targetNode = document.querySelector(selector);
-
-  if (!targetNode) {
-    console.error(`Element with selector "${selector}" not found.`);
-    return;
-  }
-
-  const config = {
-    attributes: true,
-    childList: true,
-    subtree: true,
-    characterData: true,
-  };
-
-  const observerCallback = function (mutationsList, observer) {
-    callback(mutationsList, observer);
-  };
-
-  const observer = new MutationObserver(observerCallback);
-
-  observer.observe(targetNode, config);
-}
-
-function startCheckingForElement(selector, callback) {
-  const interval = 1000;
-
-  const checkInterval = setInterval(() => {
-    const targetNode = document.querySelector(selector);
-    if (targetNode) {
-      clearInterval(checkInterval);
-      observeElement(selector, callback);
-    }
-  }, interval);
-}
-
-var currentUrl = window.location.href;
-
-document.addEventListener("DOMContentLoaded", () => {
-  if (currentUrl.includes("bakeoffice")) {
-    startCheckingForElement("#orderId", (mutationsList, observer) => {
-      PDTCalc();
-      collectAndLogCustomerNumbers();
-      saveOrder();
-    });
-  }
-  if (currentUrl.includes("logisticsbackoffice")) {
-    retrieveAndLogOrders();
-    cleanupExpiredOrders();
-  }
-  if (currentUrl.includes("herocare")) {
-    setInterval(BreaksTimer, 1000);
-  }
-});
 function collectAndLogCustomerNumbers() {
   let customerNumbers = new Map();
   let rows = document.querySelectorAll(
@@ -724,7 +735,9 @@ function collectAndLogCustomerNumbers() {
     console.log("Unique Numbers:", [...numbers]);
   });
 }
-
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR HIGHEST DELAY FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
 function saveOrder() {
   const orderIdElement = document.getElementById("orderId");
   const PDTElement = document.getElementById("PDT");
