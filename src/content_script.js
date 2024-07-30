@@ -6,15 +6,17 @@ var currentUrl = window.location.href;
 document.addEventListener("DOMContentLoaded", () => {
   if (currentUrl.includes("bakeoffice")) {
     startCheckingForElement("#orderId", (mutationsList, observer) => {
+      setTimeout(() => {
+        collectAndLogCustomerNumbers();
+      }, 1000);
       PDTCalc();
-      collectAndLogCustomerNumbers();
-      saveOrder();
+      // saveOrder();
     });
   }
-  if (currentUrl.includes("logisticsbackoffice")) {
-    retrieveAndLogOrders();
-    cleanupExpiredOrders();
-  }
+  // if (currentUrl.includes("logisticsbackoffice")) {
+  //   retrieveAndLogOrders();
+  //   cleanupExpiredOrders();
+  // }
   if (currentUrl.includes("herocare")) {
     setInterval(BreaksTimer, 1000);
   }
@@ -412,11 +414,8 @@ function PDTCalc() {
         : null;
 
     if (siblingElement) {
-      const DateOrderMade = siblingElement
-        .querySelector(".ng-binding")
-        .textContent.split(" ")
-        .slice(-2)
-        .join(" ");
+      const DateOrderMade =
+        siblingElement.querySelector(".ng-binding").textContent;
       const deliveryDate = document.querySelector(
         "h5.pull-left > .text-success"
       ).textContent;
@@ -424,20 +423,28 @@ function PDTCalc() {
       const minutes = parseInt(deliveryDate, 10);
 
       const minutesToAdd = minutes / 2;
+      const options = {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      };
+      const halfPDT = addMinutesToTime(
+        DateOrderMade,
+        minutesToAdd,
+        0
+      ).toLocaleTimeString([], options);
 
-      const halfPDT = addMinutesToTime(DateOrderMade, minutesToAdd, 0);
-
+      const PDT10 = createCombinedTime(DateOrderMade, minutes);
       function createCombinedTime(dateOrderMade, deliveryDate) {
         const combinedTime = addMinutesToTime(dateOrderMade, deliveryDate, 10);
         return combinedTime;
       }
-
-      const combinedTime = createCombinedTime(DateOrderMade, minutes);
-      addUpdatedTimeRow(halfPDT, combinedTime);
+      addUpdatedTimeRow(halfPDT, PDT10.toLocaleTimeString([], options));
 
       const actionTime = getActionCreationTime();
       if (actionTime) {
-        compareTimes(actionTime, combinedTime);
+        compareTimes(actionTime, PDT10);
       } else {
         console.log("Action creation time not found.");
       }
@@ -464,8 +471,8 @@ function addUpdatedTimeRow(halfPDT, combinedTime) {
     </h5>
   </div>
   <hr>
-</div>
-<div>
+ </div>
+ <div>
   <div class="clearfix">
     <h5 class="pull-left" style="margin-left: 15px;">
     PDT+10mins <br>
@@ -473,14 +480,14 @@ function addUpdatedTimeRow(halfPDT, combinedTime) {
     </h5>
   </div>
   <hr>
-</div>`;
+ </div>`;
     return; // Exit the function if the row already exists
   }
 
   // Create the new row HTML with a unique identifier
   const newRowHTML = `
-<div class="row" id="${uniqueIdentifier}">
-<div>
+ <div class="row" id="${uniqueIdentifier}">
+ <div>
   <div class="clearfix">
     <h5 class="pull-left" style="margin-left: 15px;">
      Half PDT<br>
@@ -488,8 +495,8 @@ function addUpdatedTimeRow(halfPDT, combinedTime) {
     </h5>
   </div>
   <hr>
-</div>
-<div>
+ </div>
+ <div>
   <div class="clearfix">
     <h5 class="pull-left" style="margin-left: 15px;">
     PDT+10mins <br>
@@ -497,8 +504,8 @@ function addUpdatedTimeRow(halfPDT, combinedTime) {
     </h5>
   </div>
   <hr>
-</div>
-</div>`;
+ </div>
+ </div>`;
 
   // Create a new div element and set its innerHTML to the new row HTML
   const newRowElement = document.createElement("div");
@@ -513,32 +520,32 @@ function addUpdatedTimeRow(halfPDT, combinedTime) {
     console.error("Parent element not found");
   }
 }
-function addMinutesToTime(timeStr, minutesToAdd, buffer) {
-  // Create a Date object with the given time (assuming the date is January 1, 1970)
-  const [time, period] = timeStr.split(" "); // Split into time and period (AM/PM)
-  const [hours, minutes] = time.split(":").map(Number); // Split into hours and minutes
+function addMinutesToTime(dateTimeStr, minutesToAdd, buffer) {
+  // Split the date and time parts, ignoring the day of the week if present
+  const parts = dateTimeStr.split(" ");
+  const monthDayYear = parts.slice(0, 3).join(" ");
+  const timePart = parts[3];
+  const period = parts[4];
 
-  // Convert hours to 24-hour format if needed
-  let hours24 = hours;
-  if (period === "PM" && hours < 12) hours24 += 12;
-  if (period === "AM" && hours === 12) hours24 = 0;
+  // Reconstruct the date and time in a format that Date can understand
+  const parsedDateTime = new Date(`${monthDayYear} ${timePart} ${period}`);
 
-  // Create a Date object and set the hours and minutes
-  const date = new Date();
-  date.setHours(hours24, minutes, 0, 0);
+  if (isNaN(parsedDateTime)) {
+    console.error(`Invalid date: ${dateTimeStr}`);
+    return null;
+  }
 
   // Add minutes
-  date.setMinutes(date.getMinutes() + minutesToAdd + buffer);
-  !Number.isInteger(minutesToAdd) ?? date.setSeconds(30);
+  parsedDateTime.setMinutes(
+    parsedDateTime.getMinutes() + minutesToAdd + buffer
+  );
+  parsedDateTime.setSeconds(Number.isInteger(minutesToAdd) ? 0 : 30);
+
   // Format the result back to the required time format (e.g., "hh:mm AM/PM")
-  const options = {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  };
-  return date.toLocaleTimeString([], options);
+
+  return parsedDateTime;
 }
+
 function observeElement(selector, callback) {
   const targetNode = document.querySelector(selector);
 
@@ -665,33 +672,30 @@ function compareTimes(dateTimeStr, timeStr) {
   }
 
   const riderDate = parseDateTimeString(dateTimeStr);
-  const PDT = parseTimeString(timeStr);
-
+  const PDT = timeStr;
   let result;
   if (riderDate && PDT) {
-    const differenceInMillis = riderDate - PDT; // Difference in milliseconds
-    const differenceInMinutes = Math.floor(differenceInMillis / 1000 / 60); // Convert to minutes
+    const differenceInMillis = riderDate - PDT;
+    const differenceInMinutes = Math.floor(differenceInMillis / 1000 / 60);
 
     if (riderDate > PDT) {
       result = `<div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-      <span class="bold" style="color: red;">There is late by ${differenceInMinutes} minutes.</span>
-        </h5>
-  </div>
-  <hr>
-</div>
-`;
+                  <div class="clearfix">
+                    <h5 class="pull-left" style="margin-left: 15px;">
+                      <span class="bold" style="color: red;">There is Delay by ${differenceInMinutes} minutes.</span>
+                    </h5>
+                  </div>
+                  <hr>
+                </div>`;
     } else {
-      result = `
-      <div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-     <span class="bold" style="color: #36c6d3;" >there is no late</span>
-        </h5>
-  </div>
-  <hr>
-</div>`;
+      result = `<div>
+                  <div class="clearfix">
+                    <h5 class="pull-left" style="margin-left: 15px;">
+                     <span class="bold" style="color: green;" >There is no Delay</span>
+                    </h5>
+                  </div>
+                  <hr>
+                </div>`;
     }
   } else {
     result = "Invalid date or time format.";
@@ -738,63 +742,63 @@ function collectAndLogCustomerNumbers() {
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR HIGHEST DELAY FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
-function saveOrder() {
-  const orderIdElement = document.getElementById("orderId");
-  const PDTElement = document.getElementById("PDT");
+// function saveOrder() {
+//   const orderIdElement = document.getElementById("orderId");
+//   const PDTElement = document.getElementById("PDT");
 
-  if (orderIdElement && PDTElement) {
-    const orderId = orderIdElement.textContent.trim();
-    const PDT = PDTElement.textContent.trim();
-    const timestamp = new Date().toISOString(); // Current time as ISO string
+//   if (orderIdElement && PDTElement) {
+//     const orderId = orderIdElement.textContent.trim();
+//     const PDT = PDTElement.textContent.trim();
+//     const timestamp = new Date().toISOString(); // Current time as ISO string
 
-    // Get existing orders from storage
-    chrome.storage.local.get("orders", (result) => {
-      const orders = result.orders || [];
+//     // Get existing orders from storage
+//     chrome.storage.local.get("orders", (result) => {
+//       const orders = result.orders || [];
 
-      // Add new order to the list
-      orders.push({ orderId, PDT, timestamp });
+//       // Add new order to the list
+//       orders.push({ orderId, PDT, timestamp });
 
-      // Save the updated list back to storage
-      chrome.storage.local.set({ orders }, () => {
-        console.log("Order saved to chrome.storage:", {
-          orderId,
-          PDT,
-          timestamp,
-        });
-      });
-    });
-  } else {
-    console.error('Elements with IDs "orderId" or "PDT" not found.');
-  }
-}
+//       // Save the updated list back to storage
+//       chrome.storage.local.set({ orders }, () => {
+//         console.log("Order saved to chrome.storage:", {
+//           orderId,
+//           PDT,
+//           timestamp,
+//         });
+//       });
+//     });
+//   } else {
+//     console.error('Elements with IDs "orderId" or "PDT" not found.');
+//   }
+// }
 
-function retrieveAndLogOrders() {
-  chrome.storage.local.get("orders", (result) => {
-    const orders = result.orders || [];
-    if (orders.length > 0) {
-      console.log("Retrieved orders from chrome.storage:", orders);
-    } else {
-      console.log("No orders found in chrome.storage.");
-    }
-  });
-}
+// function retrieveAndLogOrders() {
+//   chrome.storage.local.get("orders", (result) => {
+//     const orders = result.orders || [];
+//     if (orders.length > 0) {
+//       console.log("Retrieved orders from chrome.storage:", orders);
+//     } else {
+//       console.log("No orders found in chrome.storage.");
+//     }
+//   });
+// }
 
-function cleanupExpiredOrders() {
-  const expirationTime = 4 * 60 * 60 * 1000;
-  const now = new Date().getTime();
+// function cleanupExpiredOrders() {
+//   const expirationTime = 4 * 60 * 60 * 1000;
+//   const now = new Date().getTime();
 
-  chrome.storage.local.get("orders", (result) => {
-    const orders = result.orders || [];
+//   chrome.storage.local.get("orders", (result) => {
+//     const orders = result.orders || [];
 
-    // Filter out orders older than 24 hours
-    const updatedOrders = orders.filter((order) => {
-      const orderTime = new Date(order.timestamp).getTime();
-      return now - orderTime < expirationTime;
-    });
+//     // Filter out orders older than 24 hours
+//     const updatedOrders = orders.filter((order) => {
+//       const orderTime = new Date(order.timestamp).getTime();
+//       return now - orderTime < expirationTime;
+//     });
 
-    // Save the updated list back to storage
-    chrome.storage.local.set({ orders: updatedOrders }, () => {
-      console.log("Expired orders cleaned up.");
-    });
-  });
-}
+//     // Save the updated list back to storage
+//     chrome.storage.local.set({ orders: updatedOrders }, () => {
+//       console.log("Expired orders cleaned up.");
+//     });
+//   });
+// }
