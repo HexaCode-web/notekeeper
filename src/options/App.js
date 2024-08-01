@@ -243,7 +243,7 @@ const Options = () => {
       )}
 
       <p style={{ textAlign: "center", fontSize: "1.05rem" }}>
-        Version:2.5 • Created by Marco
+        Version:2.8 • Created by Marco
       </p>
     </>
   );

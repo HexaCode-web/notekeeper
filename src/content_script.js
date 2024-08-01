@@ -6,9 +6,9 @@ var currentUrl = window.location.href;
 document.addEventListener("DOMContentLoaded", () => {
   if (currentUrl.includes("bakeoffice")) {
     startCheckingForElement("#orderId", (mutationsList, observer) => {
-      setTimeout(() => {
-        collectAndLogCustomerNumbers();
-      }, 1000);
+      watchClicks(`li[heading="Last Orders"]`);
+
+      checkForWrapper();
       PDTCalc();
       // saveOrder();
     });
@@ -440,7 +440,7 @@ function PDTCalc() {
         const combinedTime = addMinutesToTime(dateOrderMade, deliveryDate, 10);
         return combinedTime;
       }
-      addUpdatedTimeRow(halfPDT, PDT10.toLocaleTimeString([], options));
+      displayTimeData(halfPDT, PDT10.toLocaleTimeString([], options));
 
       const actionTime = getActionCreationTime();
       if (actionTime) {
@@ -455,71 +455,225 @@ function PDTCalc() {
     console.log("Initial element not found.");
   }
 }
-function addUpdatedTimeRow(halfPDT, combinedTime) {
-  // Define the ID or class that uniquely identifies the new row
-  const uniqueIdentifier = "updatedTimeRow";
-  // Check if the row with the unique identifier already exists
-  if (document.getElementById(uniqueIdentifier)) {
-    const existingRow = document.getElementById(uniqueIdentifier);
 
-    existingRow.innerHTML = `
-  <div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-     Half PDT<br>
-      <span class="bold" style="color: #36c6d3;" id="DelaySMSTime">${halfPDT}</span>
-    </h5>
-  </div>
-  <hr>
- </div>
- <div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-    PDT+10mins <br>
-      <span class="bold" style="color: #36c6d3;" id="PDT">${combinedTime}</span>
-    </h5>
-  </div>
-  <hr>
- </div>`;
-    return; // Exit the function if the row already exists
+function checkForWrapper() {
+  const existingWrapper = document.querySelector("#additionWrapper");
+
+  if (existingWrapper) {
+    existingWrapper.innerHTML = "";
+
+    buildTimePanel(existingWrapper);
+    buildCstPanel(existingWrapper);
+  } else {
+    const wrapperEL = document.createElement("div");
+    wrapperEL.id = "additionWrapper";
+    wrapperEL.className = "col-md-8";
+    wrapperEL.style.padding = "0";
+
+    buildTimePanel(wrapperEL);
+    buildCstPanel(wrapperEL);
+
+    document.querySelector(".portlet-body > .row").appendChild(wrapperEL);
   }
 
-  // Create the new row HTML with a unique identifier
-  const newRowHTML = `
- <div class="row" id="${uniqueIdentifier}">
- <div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-     Half PDT<br>
-      <span class="bold" style="color: #36c6d3;" id="DelaySMSTime">${halfPDT}</span>
-    </h5>
-  </div>
-  <hr>
- </div>
- <div>
-  <div class="clearfix">
-    <h5 class="pull-left" style="margin-left: 15px;">
-    PDT+10mins <br>
-      <span class="bold" style="color: #36c6d3;" id="PDT">${combinedTime}</span>
-    </h5>
-  </div>
-  <hr>
- </div>
- </div>`;
+  // Add click event listener to the button
+  const openLastOrdersButton = document.querySelector("#openLastOrdersButton");
+  openLastOrdersButton.addEventListener("click", () => {
+    const orderLogHistoryTab = document.querySelector(
+      'li[heading="Order Log History"]'
+    );
+    const lastOrdersTab = document.querySelector('li[heading="Last Orders"]');
 
-  // Create a new div element and set its innerHTML to the new row HTML
-  const newRowElement = document.createElement("div");
-  newRowElement.innerHTML = newRowHTML;
+    if (orderLogHistoryTab) {
+      orderLogHistoryTab.classList.remove("active");
+    }
+    if (lastOrdersTab) {
+      lastOrdersTab.classList.add("active");
+      lastOrdersTab.querySelector("a").click();
+      lastOrdersTab.click();
+    }
+  });
+}
+const buildCstPanel = (WrapperEL) => {
+  const CSTparentEL = document.createElement("div");
+  CSTparentEL.id = "CSNumbers";
+  CSTparentEL.className = "col-md-8";
+  const panel = document.createElement("div");
+  panel.className = "panel panel-primary";
 
-  // Find the parent element where the new row will be inserted
-  const parentElement = document.querySelector(".panel-body");
+  const panelHeading = document.createElement("div");
+  panelHeading.className = "panel-heading";
+
+  const panelTitle = document.createElement("h3");
+  panelTitle.className = "panel-title bold clearfix";
+  panelTitle.textContent = "Customer Numbers";
+
+  panelHeading.appendChild(panelTitle);
+  panel.appendChild(panelHeading);
+
+  const panelBody = document.createElement("div");
+  panelBody.className = "panel-body";
+  panelBody.id = "CSNumbers-panel";
+  panelBody.innerHTML = `
+      <h2 style="text-align: center;">
+        Open Last orders to view customer numbers
+      </h2>
+      <button class="btn btn-lg btn-md btn-block green-meadow ng-scope" 
+      style="margin: auto;width: fit-content" id="openLastOrdersButton">
+        Open Last Orders
+      </button>`;
+  panel.appendChild(panelBody);
+  CSTparentEL.appendChild(panel);
+  WrapperEL.appendChild(CSTparentEL);
+};
+const buildTimePanel = (WrapperEL) => {
+  let ParentEL = document.createElement("div");
+  ParentEL.id = "updatedTimeRow";
+  ParentEL.className = "col-md-4";
+
+  let panel = document.createElement("div");
+  panel.className = "panel panel-primary";
+
+  // Create panel heading
+  let panelHeading = document.createElement("div");
+  panelHeading.className = "panel-heading";
+  let panelTitle = document.createElement("h3");
+  panelTitle.className = "panel-title bold clearfix";
+  panelTitle.textContent = "Time Data";
+  panelHeading.appendChild(panelTitle);
+  panel.appendChild(panelHeading);
+  let alert = "";
+  // Create panel body
+  let panelBody = document.createElement("div");
+  panelBody.className = "panel-body";
+  if (
+    document.querySelector(".bold.pull-right.media-object.ng-binding")
+      .textContent === "UAE"
+  ) {
+    alert =
+      "In UAE, for the Groceries not Tmart, the buffer is 30 minutes after the PDT";
+  } else {
+    alert = "";
+  }
+  // Create content for the panel
+  panelBody.innerHTML = `
+    <div>
+      <div class="clearfix">
+        <h5 class="pull-left" style="margin-left: 15px;">
+          Half PDT<br>
+          <br>
+          <span class="bold" style="color: #36c6d3;" id="DelaySMSTime"></span>
+        </h5>
+      </div>
+      <hr>
+    </div>
+    <div>
+      <div class="clearfix">
+        <h5 class="pull-left" style="margin-left: 15px;">
+          PDT+10mins <br>
+            <span id="alert">${alert}</span>
+            <br>
+          <span class="bold" style="color: #36c6d3;" id="PDT"></span>
+        </h5>
+      </div>
+      <hr>
+    </div>`;
+
+  panel.appendChild(panelBody);
+  ParentEL.appendChild(panel);
+
+  // Find the parent element where the new panel will be inserted
+  const parentElement = WrapperEL;
+
   if (parentElement) {
-    // Append the new row as the last child of the parent element
-    parentElement.appendChild(newRowElement);
+    parentElement.appendChild(ParentEL);
+  } else {
+    console.error("Parent element not found");
+  }
+};
+function displayTimeData(halfPDT, combinedTime) {
+  // Define the ID or class that uniquely identifies the new panel
+  const uniqueIdentifier = "updatedTimeRow";
+
+  // Check if the panel with the unique identifier already exists
+  if (document.getElementById(uniqueIdentifier)) {
+    const existingPanel = document.getElementById(uniqueIdentifier);
+
+    // Update the existing panel content
+    existingPanel.querySelector("#DelaySMSTime").textContent = halfPDT;
+    existingPanel.querySelector("#PDT").textContent = combinedTime;
+
+    return; // Exit the function if the panel already exists
+  }
+
+  // Create the new panel container with the same styles as before
+  let ParentEL = document.createElement("div");
+  ParentEL.id = uniqueIdentifier;
+  ParentEL.className = "col-md-4";
+
+  let panel = document.createElement("div");
+  panel.className = "panel panel-primary";
+
+  // Create panel heading
+  let panelHeading = document.createElement("div");
+  panelHeading.className = "panel-heading";
+  let panelTitle = document.createElement("h3");
+  panelTitle.className = "panel-title bold clearfix";
+  panelTitle.textContent = "Time Data";
+  panelHeading.appendChild(panelTitle);
+  panel.appendChild(panelHeading);
+  let alert = "";
+
+  // Create panel body
+  let panelBody = document.createElement("div");
+  panelBody.className = "panel-body";
+  if (
+    document.querySelector(".bold.pull-right.media-object.ng-binding")
+      .textContent === "UAE"
+  ) {
+    console.log("true");
+    alert =
+      "In UAE, for the Groceries not Tmart, the buffer is 30 minutes after the PDT";
+  } else {
+    alert = "";
+  }
+  // Create content for the panel
+  panelBody.innerHTML = `
+    <div>
+      <div class="clearfix">
+        <h5 class="pull-left" style="margin-left: 15px;">
+          Half PDT<br>
+          <br>
+          <span class="bold" style="color: #36c6d3;" id="DelaySMSTime">${halfPDT}</span>
+        </h5>
+      </div>
+      <hr>
+    </div>
+    <div>
+      <div class="clearfix">
+        <h5 class="pull-left" style="margin-left: 15px;">
+          PDT+10mins <br>
+          <span>${alert}</span>
+             <br> 
+          <span class="bold" style="color: #36c6d3;" id="PDT">${combinedTime}</span>
+        </h5>
+      </div>
+      <hr>
+    </div>`;
+
+  panel.appendChild(panelBody);
+  ParentEL.appendChild(panel);
+
+  // Find the parent element where the new panel will be inserted
+  const parentElement = document.querySelector("#additionWrapper");
+
+  if (parentElement) {
+    parentElement.appendChild(ParentEL);
   } else {
     console.error("Parent element not found");
   }
 }
+
 function addMinutesToTime(dateTimeStr, minutesToAdd, buffer) {
   // Split the date and time parts, ignoring the day of the week if present
   const parts = dateTimeStr.split(" ");
@@ -569,9 +723,21 @@ function observeElement(selector, callback) {
 
   observer.observe(targetNode, config);
 }
+function watchClicks(selector) {
+  const targetNode = document.querySelector(selector);
+  if (targetNode) {
+    // Add an event listener for the 'click' event
+    targetNode.addEventListener("click", (event) => {
+      setTimeout(() => {
+        collectAndDisplayCustomerNumbers();
+      }, 1000);
+    });
+  } else {
+    console.error('Element with heading "Last Orders" not found.');
+  }
+}
 function startCheckingForElement(selector, callback) {
   const interval = 1000;
-
   const checkInterval = setInterval(() => {
     const targetNode = document.querySelector(selector);
     if (targetNode) {
@@ -654,25 +820,9 @@ function compareTimes(dateTimeStr, timeStr) {
     return parsedDateTime;
   }
 
-  // Helper function to parse a time string (e.g., "02:52 PM") into a Date object
-  function parseTimeString(timeStr) {
-    const [time, period] = timeStr.split(" "); // Split into time and period (AM/PM)
-    const [hours, minutes] = time.split(":").map(Number); // Split into hours and minutes
-
-    // Convert hours to 24-hour format if needed
-    let hours24 = hours;
-    if (period === "PM" && hours < 12) hours24 += 12;
-    if (period === "AM" && hours === 12) hours24 = 0;
-
-    // Create a Date object and set the hours and minutes
-    const date = new Date();
-    date.setHours(hours24, minutes, 0, 0);
-
-    return date;
-  }
-
   const riderDate = parseDateTimeString(dateTimeStr);
   const PDT = timeStr;
+
   let result;
   if (riderDate && PDT) {
     const differenceInMillis = riderDate - PDT;
@@ -701,7 +851,9 @@ function compareTimes(dateTimeStr, timeStr) {
     result = "Invalid date or time format.";
   }
 
-  const updatedTimeRow = document.getElementById("updatedTimeRow");
+  const updatedTimeRow = document
+    .getElementById("updatedTimeRow")
+    .querySelector(".panel-body");
   if (updatedTimeRow) {
     const newContent = document.createElement("div");
     newContent.innerHTML = result;
@@ -714,31 +866,161 @@ function compareTimes(dateTimeStr, timeStr) {
 //FOR CUSTOMER NUMBER FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-function collectAndLogCustomerNumbers() {
-  let customerNumbers = new Map();
+function collectAndDisplayCustomerNumbers() {
+  let customerData = new Map(); // Change to store objects with numbers and country
   let rows = document.querySelectorAll(
     'table[st-safe-src="customerHistories"] tbody tr'
   );
+  let cstData = [];
   rows.forEach((row) => {
     let cells = row.querySelectorAll("td");
     let customerName = cells[3].textContent.trim();
     let customerNumber = cells[5].textContent.trim();
     let landlineNumber = cells[6].textContent.trim();
-    if (!customerNumbers.has(customerName)) {
-      customerNumbers.set(customerName, new Set());
+    let country = cells[13].textContent.trim();
+    let brand = cells[14].textContent.trim();
+    const cstObject = {
+      customerName,
+      customerNumber,
+      landlineNumber,
+      country,
+      brand,
+    };
+
+    // Initialize customer entry if not exists
+    if (!customerData.has(customerName)) {
+      customerData.set(customerName, {
+        numbers: new Set(),
+        country: country,
+        brand: brand,
+      });
     }
+
+    let data = customerData.get(customerName);
+
+    // Add numbers to the customer
     if (customerNumber) {
-      customerNumbers.get(customerName).add(customerNumber);
+      data.numbers.add(customerNumber);
     }
     if (landlineNumber) {
-      customerNumbers.get(customerName).add(landlineNumber);
+      data.numbers.add(landlineNumber);
     }
+
+    data.country = country;
+    data.brand = brand;
+    cstData.push(cstObject);
   });
-  customerNumbers.forEach((numbers, name) => {
-    console.log(`Customer Name: ${name}`);
-    console.log("Unique Numbers:", [...numbers]);
-  });
+
+  let uniqueCstData = Array.from(
+    new Set(cstData.map((a) => JSON.stringify(a)))
+  ).map((str) => JSON.parse(str));
+
+  console.log(uniqueCstData);
+  updateCustomerNumbersPanel(uniqueCstData);
 }
+
+function updateCustomerNumbersPanel(customerData) {
+  const targetDiv = document.querySelector("#additionWrapper");
+  const panel = document.querySelector("#CSNumbers-panel");
+
+  if (!targetDiv) {
+    console.error('Element with ID "additionWrapper" not found.');
+    return;
+  }
+
+  if (panel) {
+    panel.innerHTML = "";
+    const Table = panel.querySelector("table");
+    if (Table) {
+      Table.remove();
+    }
+  } else {
+    console.error('Element with ID "CSNumbers-panel" not found.');
+    return;
+  }
+
+  // Create a table to display the data
+  let table = document.createElement("table");
+  table.className = "table table-bordered";
+  table.style.width = "100%";
+  table.style.borderCollapse = "collapse";
+
+  // Add a header row to the table
+  let headerRow = table.insertRow();
+  let headers = ["Customer Name", "Numbers", "Country", "Brand"];
+  headers.forEach((headerText) => {
+    let th = document.createElement("th");
+    th.textContent = headerText;
+    th.className = "bold";
+    th.style.border = "1px solid #ddd";
+    th.style.padding = "8px";
+    headerRow.appendChild(th);
+  });
+
+  // Add rows for each customer
+  customerData.forEach((data) => {
+    let row = table.insertRow();
+    let cellName = row.insertCell();
+    let cellNumbers = row.insertCell();
+    let cellCountry = row.insertCell();
+    let cellBrand = row.insertCell();
+
+    cellName.textContent = data.customerName;
+    cellName.style.border = "1px solid #ddd";
+    cellName.style.padding = "8px";
+
+    cellCountry.textContent = data.country;
+    cellCountry.style.border = "1px solid #ddd";
+    cellCountry.style.padding = "8px";
+
+    cellBrand.textContent = data.brand;
+    cellBrand.style.border = "1px solid #ddd";
+    cellBrand.style.padding = "8px";
+
+    cellNumbers.style.border = "1px solid #ddd";
+    cellNumbers.style.padding = "8px";
+
+    let numbers = [data.customerNumber, data.landlineNumber].filter(Boolean);
+    numbers.forEach((number) => {
+      let numberSpan = document.createElement("span");
+      numberSpan.innerHTML = number;
+      numberSpan.style.cursor = "pointer";
+      numberSpan.onclick = () => copyToClipboard(number);
+
+      let copyButton = document.createElement("button");
+      copyButton.innerHTML = '<i class="fa fa-files-o"></i>';
+      copyButton.className = "btn btn-sm blue";
+      copyButton.style.marginLeft = "10px";
+
+      copyButton.onclick = () => copyToClipboard(number);
+
+      let numberContainer = document.createElement("div");
+      numberContainer.appendChild(numberSpan);
+      numberContainer.style.marginTop = "10px";
+      numberContainer.style.alignItems = "center";
+      numberContainer.style.justifyContent = "space-between";
+      numberContainer.style.display = "flex";
+      numberContainer.style.width = "64%";
+
+      numberContainer.appendChild(copyButton);
+
+      cellNumbers.appendChild(numberContainer);
+    });
+  });
+
+  // Append the table to the panel body
+  panel.appendChild(table);
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard
+    .writeText(text)
+
+    .catch((err) => {
+      console.error("Could not copy text: ", err);
+    });
+}
+
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR HIGHEST DELAY FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
