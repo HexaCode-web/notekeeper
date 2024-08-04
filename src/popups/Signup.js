@@ -1,8 +1,9 @@
 import React from "react";
-import { GETCOLLECTION, QUERY, SETDOC } from "../background/index";
+import { QUERY, SETDOC } from "../background/background";
 import { CreateToast } from "./App";
-import sortBy from "sort-by";
 import CustomInput from "../Input/CustomInput";
+import { v4 as uuidv4 } from "uuid";
+
 export default function Main(props) {
   const [NewUser, setNewUser] = React.useState({
     UserName: "",
@@ -10,10 +11,6 @@ export default function Main(props) {
     Notes: [],
   });
 
-  const [showPassword, setShowPassword] = React.useState(false);
-  const handleChange = (e) => {
-    setShowPassword((prev) => !prev);
-  };
   const handleInput = (event) => {
     const { name, value } = event.target;
     setNewUser((prev) => {
@@ -34,12 +31,7 @@ export default function Main(props) {
       CreateToast("يوجد مستخدم بنفس الاسم", "error", 2000);
       return;
     }
-    let oldUsers = await GETCOLLECTION("Users");
-    let localID;
-    oldUsers.sort(sortBy("ID"));
-    oldUsers.forEach((user) => {
-      localID = +user.ID + 1;
-    });
+
     const currentDate = new Date();
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth() + 1;
@@ -48,6 +40,7 @@ export default function Main(props) {
     const minutes = currentDate.getMinutes();
     const seconds = currentDate.getSeconds();
     const formattedDate = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    const localID = uuidv4();
     localStorage.setItem(
       "ActiveUser",
       JSON.stringify({ ...NewUser, ID: localID })

@@ -5,14 +5,14 @@ import {
   GETDOC,
   QUERY,
   SETDOC,
-} from "../../background";
+} from "../../background/background";
 import DataTable from "react-data-table-component";
 import ConfirmDialog from "../Confirm";
 import { CreateToast } from "../../popups/App";
 import CustomInput from "../../Input/CustomInput";
 
 const Dashboard = () => {
-  const [users, setUsers] = useState(null);
+  const [users, setUsers] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTitle, setConfirmTitle] = useState(null);
   const [targetUser, setTargetUser] = useState(null);
@@ -22,7 +22,6 @@ const Dashboard = () => {
   const handleOpen = () => {
     setConfirmOpen(true);
   };
-
   const handleClose = () => {
     setTargetUser(null);
     setOperation(null);
@@ -48,7 +47,6 @@ const Dashboard = () => {
       default:
         break;
     }
-    setUsers(await GETCOLLECTION("Users"));
   };
   const deleteUser = async () => {
     CreateToast(`deleting ${targetUser.UserName}`, "info");

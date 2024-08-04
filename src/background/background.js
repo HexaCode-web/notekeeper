@@ -21,7 +21,9 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("hi");
+});
 export const GETCOLLECTION = async (target) => {
   try {
     const cleanData = [];
@@ -100,3 +102,17 @@ export const QUERY = async (collectionName, propertyInDB, operation, value) => {
     throw new Error("Error during query");
   }
 };
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "showNotification") {
+    chrome.notifications.create("", {
+      type: "basic",
+      iconUrl:
+        "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/alarm-icon-2048x2048-w4u7v1ri.png?alt=media&token=a0ea8655-f0d1-483c-8a82-e416089377e9",
+      title: message.title,
+      message: message.message,
+      priority: 2,
+    });
+    sendResponse({ status: "notification shown" });
+  }
+});

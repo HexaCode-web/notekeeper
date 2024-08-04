@@ -2,29 +2,38 @@ import { differenceInSeconds } from "date-fns";
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR DECIDING THE FUNCTION TO USE
 //--------------------------------------------------------------------------------------------------------------------------------------------
-var currentUrl = window.location.href;
-document.addEventListener("DOMContentLoaded", () => {
+var currentUrl = window.location.href.toLowerCase();
+function main() {
   if (currentUrl.includes("bakeoffice")) {
     startCheckingForElement("#orderId", (mutationsList, observer) => {
       watchClicks(`li[heading="Last Orders"]`);
-
       checkForWrapper();
       PDTCalc();
-      // saveOrder();
     });
   }
-  // if (currentUrl.includes("logisticsbackoffice")) {
-  //   retrieveAndLogOrders();
-  //   cleanupExpiredOrders();
-  // }
+
   if (currentUrl.includes("herocare")) {
     setInterval(BreaksTimer, 1000);
+
+    // startCheckingForElement(".ticketList-0-2-26", (mutationsList, observer) => {
+    //   markChats();
+    // });
   }
-});
+  if (currentUrl.includes("localhost")) {
+    startCheckingForElement(
+      '[class*="ticketList"]',
+      (mutationsList, observer) => {
+        markChats();
+      }
+    );
+  }
+}
+
+document.addEventListener("DOMContentLoaded", main);
 //--------------------------------------------------------------------------------------------------------------------------------------------
-//FOR SHORTCUT FUNCTION
+//FOR FreshChat FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
-let Notes; // Declare the Notes variable outside the function to make it accessible globally
+let Notes;
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   const focusedElement = document.activeElement;
@@ -271,6 +280,134 @@ const onClickInsert = (Note) => {
 
 document.addEventListener("keydown", handleKeyboardInput, true);
 //--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR the notification function
+//--------------------------------------------------------------------------------------------------------------------------------------------
+
+let lastNotificationTimeForFirstChat = 0;
+let lastNotificationTimeForSecondChat = 0;
+let lastNotificationTimeForThirdChat = 0;
+let firstChatHold = false;
+let secondChatHold = false;
+let thirdChatHold = false;
+
+const markChats = () => {
+  const activeChats = document.querySelectorAll(".ant-progress-text");
+
+  const lastNotificationTimes = [
+    lastNotificationTimeForFirstChat,
+    lastNotificationTimeForSecondChat,
+    lastNotificationTimeForThirdChat,
+  ];
+
+  const chatHasHold = [firstChatHold, secondChatHold, thirdChatHold];
+  const whitelist = ["اضافي", "3-5دقائق", "ثلاث", "الثانيه", "3"];
+  function containsWhitelistWord(message, whitelist) {
+    return whitelist.some((word) => message.includes(word));
+  }
+
+  activeChats.forEach((ChatWrapper, index) => {
+    const chat = ChatWrapper.querySelector("div");
+    if (!chat.dataset.listenerAdded) {
+      chat.dataset.listenerAdded = "true";
+
+      chat.addEventListener("click", () => {
+        startCheckingForElement(
+          '[data-testid="conversation-container"]',
+          () => {
+            console.log(lastAgentMessage());
+
+            if (containsWhitelistWord(lastAgentMessage(), whitelist)) {
+              chatHasHold[index] = true;
+            } else {
+              chatHasHold[index] = false;
+            }
+          }
+        );
+      });
+    }
+    if (!chat.id) {
+      chat.id = `chat${index}`;
+
+      observeElement(`#chat${index}`, (mutationsList, observer) => {
+        const time = chat.textContent.trim();
+        const [minutes, seconds] = time.split(":").map(Number);
+        const totalSeconds = minutes * 60 + seconds;
+        const currentTime = Date.now();
+
+        let waitTime = chatHasHold[index] ? 0 : 90;
+
+        if (totalSeconds < waitTime && totalSeconds > 60) {
+          if (currentTime - lastNotificationTimes[index] > 12000) {
+            lastNotificationTimes[index] = currentTime;
+            sendNotification(getChatPlacement(index));
+          }
+        }
+      });
+    }
+  });
+};
+function lastAgentMessage() {
+  // Get all message containers
+  const messageContainers = document.querySelectorAll(
+    '[data-testid="chat-bubble"]'
+  );
+
+  // Array to hold the extracted agent messages
+  let agentMessages = [];
+
+  messageContainers.forEach((container) => {
+    const senderDetail = container.querySelector(
+      '[class*="messageDetails"] span:first-child'
+    ).textContent;
+
+    if (senderDetail.endsWith("_Xceed")) {
+      const messageContent = container.querySelector(
+        '[data-testid="chat-bubble-paragraph"]'
+      ).innerText;
+
+      agentMessages.push(messageContent.trim());
+    }
+  });
+
+  if (agentMessages.length > 0) {
+    return agentMessages[agentMessages.length - 1];
+  } else {
+    console.log("No agent messages found.");
+  }
+}
+
+const sendNotification = (chatPlacement) => {
+  chrome.runtime.sendMessage({
+    action: "showNotification",
+    title: `${chatPlacement} chat is silent`,
+    message: "Silence Alert",
+  });
+  playNotificationSound(
+    "https://firebasestorage.googleapis.com/v0/b/rea-test-ca2bb.appspot.com/o/message-13716.mp3?alt=media&token=9988b24c-3326-44c1-848f-684010f19309"
+  );
+};
+function playNotificationSound(url) {
+  const audio = new Audio(url);
+
+  audio.play().catch((error) => {
+    console.error("Error playing audio:", error);
+  });
+}
+// Function to get chat placement
+const getChatPlacement = (index) => {
+  switch (index) {
+    case 0:
+      return "First";
+    case 1:
+      return "Second";
+    case 2:
+      return "Third";
+    default:
+      return "";
+  }
+};
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR BREAKS TIME FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
 let timeConsumed = null;
@@ -395,67 +532,8 @@ const BreaksTimer = async () => {
   }
 };
 //--------------------------------------------------------------------------------------------------------------------------------------------
-//FOR PDTCalc FUNCTION
+//FOR BOA BUILDING FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
-function PDTCalc() {
-  const initialElement = document.querySelector(
-    '[ng-show="order.postDatedTime>0"]'
-  );
-
-  if (initialElement) {
-    const siblingElement =
-      Array.from(initialElement.nextElementSibling.classList).includes(
-        "col-md-12"
-      ) &&
-      Array.from(initialElement.nextElementSibling.classList).includes(
-        "clearfix"
-      )
-        ? initialElement.nextElementSibling
-        : null;
-
-    if (siblingElement) {
-      const DateOrderMade =
-        siblingElement.querySelector(".ng-binding").textContent;
-      const deliveryDate = document.querySelector(
-        "h5.pull-left > .text-success"
-      ).textContent;
-
-      const minutes = parseInt(deliveryDate, 10);
-
-      const minutesToAdd = minutes / 2;
-      const options = {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      };
-      const halfPDT = addMinutesToTime(
-        DateOrderMade,
-        minutesToAdd,
-        0
-      ).toLocaleTimeString([], options);
-
-      const PDT10 = createCombinedTime(DateOrderMade, minutes);
-      function createCombinedTime(dateOrderMade, deliveryDate) {
-        const combinedTime = addMinutesToTime(dateOrderMade, deliveryDate, 10);
-        return combinedTime;
-      }
-      displayTimeData(halfPDT, PDT10.toLocaleTimeString([], options));
-
-      const actionTime = getActionCreationTime();
-      if (actionTime) {
-        compareTimes(actionTime, PDT10);
-      } else {
-        console.log("Action creation time not found.");
-      }
-    } else {
-      console.log("Sibling element with specified class names not found.");
-    }
-  } else {
-    console.log("Initial element not found.");
-  }
-}
-
 function checkForWrapper() {
   const existingWrapper = document.querySelector("#additionWrapper");
 
@@ -547,8 +625,9 @@ const buildTimePanel = (WrapperEL) => {
   let panelBody = document.createElement("div");
   panelBody.className = "panel-body";
   if (
-    document.querySelector(".bold.pull-right.media-object.ng-binding")
-      .textContent === "UAE"
+    document
+      .querySelector(".bold.pull-right.media-object.ng-binding")
+      .innerHTML.includes("UAE")
   ) {
     alert =
       "In UAE, for the Groceries not Tmart, the buffer is 30 minutes after the PDT";
@@ -591,6 +670,67 @@ const buildTimePanel = (WrapperEL) => {
     console.error("Parent element not found");
   }
 };
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR PDTCalc FUNCTION
+//--------------------------------------------------------------------------------------------------------------------------------------------
+function PDTCalc() {
+  const initialElement = document.querySelector(
+    '[ng-show="order.postDatedTime>0"]'
+  );
+
+  if (initialElement) {
+    const siblingElement =
+      Array.from(initialElement.nextElementSibling.classList).includes(
+        "col-md-12"
+      ) &&
+      Array.from(initialElement.nextElementSibling.classList).includes(
+        "clearfix"
+      )
+        ? initialElement.nextElementSibling
+        : null;
+
+    if (siblingElement) {
+      const DateOrderMade =
+        siblingElement.querySelector(".ng-binding").textContent;
+      const deliveryDate = document.querySelector(
+        "h5.pull-left > .text-success"
+      ).textContent;
+
+      const minutes = parseInt(deliveryDate, 10);
+
+      const minutesToAdd = minutes / 2;
+      const options = {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      };
+      const halfPDT = addMinutesToTime(
+        DateOrderMade,
+        minutesToAdd,
+        0
+      ).toLocaleTimeString([], options);
+
+      const PDT10 = createCombinedTime(DateOrderMade, minutes);
+      function createCombinedTime(dateOrderMade, deliveryDate) {
+        const combinedTime = addMinutesToTime(dateOrderMade, deliveryDate, 10);
+        return combinedTime;
+      }
+      displayTimeData(halfPDT, PDT10.toLocaleTimeString([], options));
+
+      const actionTime = getActionCreationTime();
+      if (actionTime) {
+        compareTimes(actionTime, PDT10);
+      } else {
+        console.log("Action creation time not found.");
+      }
+    } else {
+      console.log("Sibling element with specified class names not found.");
+    }
+  } else {
+    console.log("Initial element not found.");
+  }
+}
 function displayTimeData(halfPDT, combinedTime) {
   // Define the ID or class that uniquely identifies the new panel
   const uniqueIdentifier = "updatedTimeRow";
@@ -628,10 +768,10 @@ function displayTimeData(halfPDT, combinedTime) {
   let panelBody = document.createElement("div");
   panelBody.className = "panel-body";
   if (
-    document.querySelector(".bold.pull-right.media-object.ng-binding")
-      .textContent === "UAE"
+    document
+      .querySelector(".bold.pull-right.media-object.ng-binding")
+      .textContent.includes("UAE")
   ) {
-    console.log("true");
     alert =
       "In UAE, for the Groceries not Tmart, the buffer is 30 minutes after the PDT";
   } else {
@@ -723,21 +863,8 @@ function observeElement(selector, callback) {
 
   observer.observe(targetNode, config);
 }
-function watchClicks(selector) {
-  const targetNode = document.querySelector(selector);
-  if (targetNode) {
-    // Add an event listener for the 'click' event
-    targetNode.addEventListener("click", (event) => {
-      setTimeout(() => {
-        collectAndDisplayCustomerNumbers();
-      }, 1000);
-    });
-  } else {
-    console.error('Element with heading "Last Orders" not found.');
-  }
-}
 function startCheckingForElement(selector, callback) {
-  const interval = 1000;
+  const interval = 100;
   const checkInterval = setInterval(() => {
     const targetNode = document.querySelector(selector);
     if (targetNode) {
@@ -865,13 +992,25 @@ function compareTimes(dateTimeStr, timeStr) {
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR CUSTOMER NUMBER FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
-
+function watchClicks(selector) {
+  const targetNode = document.querySelector(selector);
+  if (targetNode) {
+    // Add an event listener for the 'click' event
+    targetNode.addEventListener("click", (event) => {
+      setTimeout(() => {
+        collectAndDisplayCustomerNumbers();
+      }, 1000);
+    });
+  } else {
+    console.error('Element with heading "Last Orders" not found.');
+  }
+}
 function collectAndDisplayCustomerNumbers() {
-  let customerData = new Map(); // Change to store objects with numbers and country
   let rows = document.querySelectorAll(
     'table[st-safe-src="customerHistories"] tbody tr'
   );
   let cstData = [];
+
   rows.forEach((row) => {
     let cells = row.querySelectorAll("td");
     let customerName = cells[3].textContent.trim();
@@ -879,43 +1018,33 @@ function collectAndDisplayCustomerNumbers() {
     let landlineNumber = cells[6].textContent.trim();
     let country = cells[13].textContent.trim();
     let brand = cells[14].textContent.trim();
-    const cstObject = {
-      customerName,
-      customerNumber,
-      landlineNumber,
-      country,
-      brand,
-    };
 
-    // Initialize customer entry if not exists
-    if (!customerData.has(customerName)) {
-      customerData.set(customerName, {
-        numbers: new Set(),
-        country: country,
-        brand: brand,
+    // Add customerNumber object if it exists
+    if (customerNumber) {
+      cstData.push({
+        customerName,
+        customerNumber,
+        country,
+        brand,
       });
     }
 
-    let data = customerData.get(customerName);
-
-    // Add numbers to the customer
-    if (customerNumber) {
-      data.numbers.add(customerNumber);
-    }
+    // Add landlineNumber object as customerNumber if it exists
     if (landlineNumber) {
-      data.numbers.add(landlineNumber);
+      cstData.push({
+        customerName,
+        customerNumber: landlineNumber,
+        country,
+        brand,
+      });
     }
-
-    data.country = country;
-    data.brand = brand;
-    cstData.push(cstObject);
   });
 
+  // Remove duplicates based on all properties of the object
   let uniqueCstData = Array.from(
     new Set(cstData.map((a) => JSON.stringify(a)))
   ).map((str) => JSON.parse(str));
 
-  console.log(uniqueCstData);
   updateCustomerNumbersPanel(uniqueCstData);
 }
 
@@ -939,13 +1068,11 @@ function updateCustomerNumbersPanel(customerData) {
     return;
   }
 
-  // Create a table to display the data
   let table = document.createElement("table");
   table.className = "table table-bordered";
   table.style.width = "100%";
   table.style.borderCollapse = "collapse";
 
-  // Add a header row to the table
   let headerRow = table.insertRow();
   let headers = ["Customer Name", "Numbers", "Country", "Brand"];
   headers.forEach((headerText) => {
@@ -957,7 +1084,15 @@ function updateCustomerNumbersPanel(customerData) {
     headerRow.appendChild(th);
   });
 
-  // Add rows for each customer
+  let customerOriginalName = null;
+
+  document.querySelectorAll("h5.pull-left").forEach((element) => {
+    if (element.textContent.includes("Name")) {
+      customerOriginalName =
+        element.querySelector(".bold.ng-binding").textContent;
+    }
+  });
+
   customerData.forEach((data) => {
     let row = table.insertRow();
     let cellName = row.insertCell();
@@ -968,7 +1103,14 @@ function updateCustomerNumbersPanel(customerData) {
     cellName.textContent = data.customerName;
     cellName.style.border = "1px solid #ddd";
     cellName.style.padding = "8px";
-
+    if (customerOriginalName) {
+      if (cellName.textContent === customerOriginalName) {
+        cellName.style.color = "#36c6d3";
+        cellName.classList.add("bold");
+      }
+    } else {
+      console.log("Element not found");
+    }
     cellCountry.textContent = data.country;
     cellCountry.style.border = "1px solid #ddd";
     cellCountry.style.padding = "8px";
@@ -1008,7 +1150,6 @@ function updateCustomerNumbersPanel(customerData) {
     });
   });
 
-  // Append the table to the panel body
   panel.appendChild(table);
 }
 

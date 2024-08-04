@@ -6,7 +6,7 @@ module.exports = {
   entry: {
     popup: path.resolve("./src/popups/index.js"),
     options: path.resolve("./src/options/options.js"),
-    background: path.resolve("./src/background/index.js"),
+    background: path.resolve("./src/background/background.js"),
     content_script: path.resolve("src/content_script.js"),
   },
   plugins: [

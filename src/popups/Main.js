@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { GETDOC } from "../background/index";
+import { GETDOC } from "../background/background";
 export default function Main() {
   const settings = {
     SearchInText: JSON.parse(localStorage.getItem("TextSearch")),

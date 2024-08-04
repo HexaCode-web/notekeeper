@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { GETCOLLECTION, SETDOC } from "../background/index";
+import { QUERY, SETDOC } from "../background/background";
 import { CreateToast } from "./App";
 import CustomInput from "../Input/CustomInput";
 export default function Main(props) {
@@ -42,10 +42,14 @@ export default function Main(props) {
     if (!LoggedInUser.UserName) {
       return;
     } else {
-      const oldUsers = await GETCOLLECTION("Users");
-      const MatchUsername = oldUsers.find((user) => {
-        return user.UserName === LoggedInUser.UserName;
-      });
+      const LookForUser = await QUERY(
+        "Users",
+        "UserName",
+        "==",
+        LoggedInUser.UserName
+      );
+      const MatchUsername = LookForUser[0];
+
       if (MatchUsername) {
         const currentDate = new Date();
         const year = currentDate.getFullYear();

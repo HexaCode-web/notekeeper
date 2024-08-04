@@ -3,7 +3,7 @@ import { ToastContainer } from "react-toastify";
 import "./options.css";
 import "react-toastify/dist/ReactToastify.css";
 import { CreateToast } from "../popups/App";
-import { GETDOC, SETDOC } from "../background";
+import { SETDOC } from "../background/background";
 import Notes from "./Pages/Notes";
 import General from "./Pages/General";
 import Profile from "./Pages/Profile";
@@ -11,7 +11,6 @@ import Dashboard from "./Pages/Dashboard";
 import Updates from "./Pages/Updates";
 
 const Options = () => {
-  const [oldData, setOldData] = useState(null);
   const [firstRender, setFirstRender] = useState(true);
   const [notesChanged, setNotesChanged] = useState(false);
   const [activePage, setActivePage] = useState(
@@ -30,23 +29,7 @@ const Options = () => {
     });
     setUser(User);
   };
-  useEffect(() => {
-    const getUser = async () => {
-      const oldData = await GETDOC("backUp", User.ID);
-      const providedDate = new Date(oldData.LastUpdate);
-      const currentDate = new Date();
 
-      const timeDifference = currentDate - providedDate;
-
-      const oneWeekInMilliseconds = 7 * 24 * 60 * 60 * 1000;
-
-      if (timeDifference >= oneWeekInMilliseconds) {
-        CreateToast("you haven't backed up your data in a week", "warning");
-      }
-      setOldData(oldData);
-    };
-    getUser();
-  }, []);
   const SaveUser = async (TargetUser) => {
     CreateToast("updating", "info");
     setNotesChanged(false);
@@ -221,12 +204,7 @@ const Options = () => {
           {activePage === "Updates" && <Updates />}
           {activePage === "Profile" && (
             <>
-              <Profile
-                User={User}
-                setUser={setUser}
-                SaveUser={SaveUser}
-                oldData={oldData}
-              />
+              <Profile User={User} setUser={setUser} SaveUser={SaveUser} />
               <div className={`Save-Wrapper ${notesChanged ? "Active" : ""}`}>
                 <button
                   className="button"
@@ -243,7 +221,7 @@ const Options = () => {
       )}
 
       <p style={{ textAlign: "center", fontSize: "1.05rem" }}>
-        Version:2.8 • Created by Marco
+        Version: 2.9 • Created by Marco
       </p>
     </>
   );
