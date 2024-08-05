@@ -9,17 +9,21 @@ function main() {
       watchClicks(`li[heading="Last Orders"]`);
       checkForWrapper();
       PDTCalc();
+      getPreviousSMS();
     });
   }
 
   if (currentUrl.includes("herocare")) {
     setInterval(BreaksTimer, 1000);
-
-    // startCheckingForElement(".ticketList-0-2-26", (mutationsList, observer) => {
-    //   markChats();
-    // });
   }
   if (currentUrl.includes("localhost")) {
+    startCheckingForElement(
+      '[class*="chatContainer"]',
+      (mutationsList, observer) => {
+        checkForHold();
+        checkForClosure();
+      }
+    );
     startCheckingForElement(
       '[class*="ticketList"]',
       (mutationsList, observer) => {
@@ -28,7 +32,39 @@ function main() {
     );
   }
 }
+function observeElement(selector, callback) {
+  const targetNode = document.querySelector(selector);
 
+  if (!targetNode) {
+    console.error(`Element with selector "${selector}" not found.`);
+    return;
+  }
+
+  const config = {
+    attributes: true,
+    childList: true,
+    subtree: true,
+    characterData: true,
+  };
+
+  const observerCallback = function (mutationsList, observer) {
+    callback(mutationsList, observer);
+  };
+
+  const observer = new MutationObserver(observerCallback);
+
+  observer.observe(targetNode, config);
+}
+function startCheckingForElement(selector, callback) {
+  const interval = 100;
+  const checkInterval = setInterval(() => {
+    const targetNode = document.querySelector(selector);
+    if (targetNode) {
+      clearInterval(checkInterval);
+      observeElement(selector, callback);
+    }
+  }, interval);
+}
 document.addEventListener("DOMContentLoaded", main);
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR FreshChat FUNCTION
@@ -286,45 +322,55 @@ document.addEventListener("keydown", handleKeyboardInput, true);
 let lastNotificationTimeForFirstChat = 0;
 let lastNotificationTimeForSecondChat = 0;
 let lastNotificationTimeForThirdChat = 0;
-let firstChatHold = false;
-let secondChatHold = false;
-let thirdChatHold = false;
+
+const chatHasHold = [true, false, false];
+const chatHasClosure = [false, false, false];
+
+let activeChat = 0;
+const checkForHold = () => {
+  const whitelist = ["اضافي", "3-5دقائق", "ثلاث", "الثانيه"];
+  function containsWhitelistWord(message, whitelist) {
+    return whitelist.some((word) => message.includes(word));
+  }
+  if (containsWhitelistWord(lastAgentMessage(), whitelist)) {
+    chatHasHold[activeChat] = true;
+  } else {
+    chatHasHold[activeChat] = false;
+  }
+};
+const checkForClosure = () => {
+  const whitelist = ["استطلاعًا", "الدردشة"];
+  function containsWhitelistWord(message, whitelist) {
+    return whitelist.some((word) => message.includes(word));
+  }
+  if (containsWhitelistWord(lastAgentMessage(), whitelist)) {
+    chatHasClosure[activeChat] = true;
+  } else {
+    chatHasClosure[activeChat] = false;
+  }
+};
 
 const markChats = () => {
   const activeChats = document.querySelectorAll(".ant-progress-text");
-
   const lastNotificationTimes = [
     lastNotificationTimeForFirstChat,
     lastNotificationTimeForSecondChat,
     lastNotificationTimeForThirdChat,
   ];
 
-  const chatHasHold = [firstChatHold, secondChatHold, thirdChatHold];
-  const whitelist = ["اضافي", "3-5دقائق", "ثلاث", "الثانيه", "3"];
-  function containsWhitelistWord(message, whitelist) {
-    return whitelist.some((word) => message.includes(word));
-  }
-
   activeChats.forEach((ChatWrapper, index) => {
+    const parentEL = ChatWrapper.parentElement.parentElement.parentElement;
     const chat = ChatWrapper.querySelector("div");
-    if (!chat.dataset.listenerAdded) {
-      chat.dataset.listenerAdded = "true";
 
-      chat.addEventListener("click", () => {
-        startCheckingForElement(
-          '[data-testid="conversation-container"]',
-          () => {
-            console.log(lastAgentMessage());
+    const riderName = parentEL.querySelector(".ant-typography").textContent;
 
-            if (containsWhitelistWord(lastAgentMessage(), whitelist)) {
-              chatHasHold[index] = true;
-            } else {
-              chatHasHold[index] = false;
-            }
-          }
-        );
+    if (!parentEL.dataset.listenerAdded) {
+      parentEL.dataset.listenerAdded = "true";
+      parentEL.addEventListener("click", () => {
+        activeChat = index;
       });
     }
+
     if (!chat.id) {
       chat.id = `chat${index}`;
 
@@ -334,18 +380,27 @@ const markChats = () => {
         const totalSeconds = minutes * 60 + seconds;
         const currentTime = Date.now();
 
-        let waitTime = chatHasHold[index] ? 0 : 90;
+        let chatStatus = chatHasHold[index] ? 1 : chatHasClosure[index] ? 2 : 3;
+        let waitTime = chatStatus == 1 ? 0 : chatStatus == 2 ? 150 : 90;
+        const maxThreshold = chatStatus == 1 ? 0 : chatStatus == 2 ? 120 : 60;
 
-        if (totalSeconds < waitTime && totalSeconds > 60) {
-          if (currentTime - lastNotificationTimes[index] > 12000) {
-            lastNotificationTimes[index] = currentTime;
-            sendNotification(getChatPlacement(index));
+        if (totalSeconds <= waitTime) {
+          if (totalSeconds >= maxThreshold) {
+            if (currentTime - lastNotificationTimes[index] > 20000) {
+              lastNotificationTimes[index] = currentTime;
+              chatStatus == 1
+                ? sendNotification(`${riderName}'s chat exceeded hold`)
+                : chatStatus == 2
+                ? sendNotification(`close ${riderName}'s chat`)
+                : sendNotification(`${riderName}'s chat is silent`);
+            }
           }
         }
       });
     }
   });
 };
+
 function lastAgentMessage() {
   // Get all message containers
   const messageContainers = document.querySelectorAll(
@@ -372,15 +427,16 @@ function lastAgentMessage() {
   if (agentMessages.length > 0) {
     return agentMessages[agentMessages.length - 1];
   } else {
-    console.log("No agent messages found.");
+    return "";
   }
 }
 
-const sendNotification = (chatPlacement) => {
+const sendNotification = (message) => {
   chrome.runtime.sendMessage({
     action: "showNotification",
-    title: `${chatPlacement} chat is silent`,
-    message: "Silence Alert",
+    title: message,
+    message: "time frame alert",
+    Name: message,
   });
   playNotificationSound(
     "https://firebasestorage.googleapis.com/v0/b/rea-test-ca2bb.appspot.com/o/message-13716.mp3?alt=media&token=9988b24c-3326-44c1-848f-684010f19309"
@@ -393,19 +449,6 @@ function playNotificationSound(url) {
     console.error("Error playing audio:", error);
   });
 }
-// Function to get chat placement
-const getChatPlacement = (index) => {
-  switch (index) {
-    case 0:
-      return "First";
-    case 1:
-      return "Second";
-    case 2:
-      return "Third";
-    default:
-      return "";
-  }
-};
 
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR BREAKS TIME FUNCTION
@@ -840,39 +883,41 @@ function addMinutesToTime(dateTimeStr, minutesToAdd, buffer) {
   return parsedDateTime;
 }
 
-function observeElement(selector, callback) {
-  const targetNode = document.querySelector(selector);
-
-  if (!targetNode) {
-    console.error(`Element with selector "${selector}" not found.`);
-    return;
-  }
-
-  const config = {
-    attributes: true,
-    childList: true,
-    subtree: true,
-    characterData: true,
-  };
-
-  const observerCallback = function (mutationsList, observer) {
-    callback(mutationsList, observer);
-  };
-
-  const observer = new MutationObserver(observerCallback);
-
-  observer.observe(targetNode, config);
-}
-function startCheckingForElement(selector, callback) {
-  const interval = 100;
-  const checkInterval = setInterval(() => {
-    const targetNode = document.querySelector(selector);
-    if (targetNode) {
-      clearInterval(checkInterval);
-      observeElement(selector, callback);
+const getPreviousSMS = () => {
+  const Table = document
+    .querySelector('[st-table="displaytaskLogHistory"]')
+    .parentElement.querySelector(".tbody")
+    .querySelector('[st-safe-src="orderLogs"]')
+    .querySelector("tbody")
+    .querySelectorAll("tr");
+  for (const row of Table) {
+    const Content = row.cells[4].textContent.trim();
+    const actionType = row.cells[2].textContent.trim();
+    const DelaySMSTime = document.querySelector("#DelaySMSTime");
+    if (
+      actionType === "Send push notification to customer" &&
+      Content.includes("delay")
+    ) {
+      const warningText = document.createElement("p");
+      warningText.textContent = "Delay message already sent";
+      warningText.style.marginTop = "5px";
+      warningText.style.marginBottom = "5px";
+      warningText.style.color = "yellow";
+      DelaySMSTime.appendChild(warningText);
     }
-  }, interval);
-}
+    if (
+      actionType === "Send push notification to customer" &&
+      Content.includes("التأخير")
+    ) {
+      const warningText = document.createElement("p");
+      warningText.textContent = "Delay message already sent";
+      warningText.style.marginTop = "5px";
+      warningText.style.marginBottom = "5px";
+      warningText.style.color = "yellow";
+      DelaySMSTime.appendChild(warningText);
+    }
+  }
+};
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR LATE OWNER FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------

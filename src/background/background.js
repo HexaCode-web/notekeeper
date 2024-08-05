@@ -105,14 +105,29 @@ export const QUERY = async (collectionName, propertyInDB, operation, value) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "showNotification") {
-    chrome.notifications.create("", {
-      type: "basic",
-      iconUrl:
-        "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/alarm-icon-2048x2048-w4u7v1ri.png?alt=media&token=a0ea8655-f0d1-483c-8a82-e416089377e9",
-      title: message.title,
-      message: message.message,
-      priority: 2,
-    });
+    // Ensure message.Name is used as the notification ID or generate a unique ID if not provided
+    const notificationId = message.Name || `notification_${Date.now()}`;
+
+    chrome.notifications.create(
+      notificationId,
+      {
+        type: "basic",
+        iconUrl:
+          "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/alarm-icon-2048x2048-w4u7v1ri.png?alt=media&token=a0ea8655-f0d1-483c-8a82-e416089377e9",
+        title: message.title,
+        message: message.message,
+        priority: 2,
+      },
+      function (createdNotificationId) {
+        // Set a timer to clear the notification after 5 seconds (5000 ms)
+        setTimeout(function () {
+          chrome.notifications.clear(createdNotificationId, function () {
+            console.log("Notification closed");
+          });
+        }, 5000);
+      }
+    );
+
     sendResponse({ status: "notification shown" });
   }
 });
