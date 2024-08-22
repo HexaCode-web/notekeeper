@@ -32,7 +32,7 @@ async function main() {
     }, 1000);
   }
   //UNDER DEVELOPMENT
-  if (currentUrl.includes("localhost")) {
+  if (currentUrl.includes("herocare")) {
     addOpenKB();
     startCheckingForElement(
       '[data-testid="container-com.plugin.chat-box-view"]',
