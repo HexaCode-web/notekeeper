@@ -9,10 +9,23 @@ import General from "./Pages/General";
 import Profile from "./Pages/Profile";
 import Dashboard from "./Pages/Dashboard";
 import Updates from "./Pages/Updates";
+import Switch from "react-switch";
 
 const Options = () => {
   const [firstRender, setFirstRender] = useState(true);
   const [notesChanged, setNotesChanged] = useState(false);
+  const [settings, setSettings] = useState({
+    AllowTimeFrame: JSON.parse(localStorage.getItem("AllowTimeFrame")),
+  });
+  const handleCheckboxChange = (event, name) => {
+    const checked = event;
+
+    if (name === "AllowTimeFrame") {
+      setSettings((prev) => ({ ...prev, AllowTimeFrame: checked }));
+      localStorage.setItem("AllowTimeFrame", checked);
+    }
+  };
+
   const [activePage, setActivePage] = useState(
     localStorage.getItem("DefaultPage") || "Updates"
   );
@@ -163,6 +176,20 @@ const Options = () => {
           <h1>
             no user found, open noteKeeper and login then refresh the page
           </h1>
+          <div className="reorderCheckBox">
+            <label>
+              <span>Timeframe Alert</span>
+              <Switch
+                onChange={(Checked) => {
+                  handleCheckboxChange(Checked, "AllowTimeFrame");
+                }}
+                checked={settings.AllowTimeFrame}
+                height={20}
+                width={40}
+                onColor="#8f54a0"
+              />
+            </label>
+          </div>
         </div>
       ) : (
         <div className="container">
@@ -221,7 +248,7 @@ const Options = () => {
       )}
 
       <p style={{ textAlign: "center", fontSize: "1.05rem" }}>
-        Version: 2.9 • Created by Marco
+        Version: 3.3 • Created by Marco
       </p>
     </>
   );

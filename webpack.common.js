@@ -54,9 +54,7 @@ module.exports = {
     clean: true,
   },
   optimization: {
-    splitChunks: {
-      chunks: "all",
-    },
+    minimize: false,
   },
 };
 function getHtmlPlugins(chunks) {

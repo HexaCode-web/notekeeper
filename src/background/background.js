@@ -21,9 +21,8 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-chrome.runtime.onInstalled.addListener(() => {
-  console.log("hi");
-});
+console.log("hi");
+
 export const GETCOLLECTION = async (target) => {
   try {
     const cleanData = [];
@@ -102,24 +101,20 @@ export const QUERY = async (collectionName, propertyInDB, operation, value) => {
     throw new Error("Error during query");
   }
 };
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "showNotification") {
-    // Ensure message.Name is used as the notification ID or generate a unique ID if not provided
     const notificationId = message.Name || `notification_${Date.now()}`;
 
     chrome.notifications.create(
       notificationId,
       {
         type: "basic",
-        iconUrl:
-          "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/alarm-icon-2048x2048-w4u7v1ri.png?alt=media&token=a0ea8655-f0d1-483c-8a82-e416089377e9",
+        iconUrl: message.icon,
         title: message.title,
-        message: message.message,
+        message: "time frame alert",
         priority: 2,
       },
       function (createdNotificationId) {
-        // Set a timer to clear the notification after 5 seconds (5000 ms)
         setTimeout(function () {
           chrome.notifications.clear(createdNotificationId, function () {
             console.log("Notification closed");
@@ -129,5 +124,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     );
 
     sendResponse({ status: "notification shown" });
+
+    return true;
+  }
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "FetchData") {
+    GETDOC("secretKey", "secretKey")
+      .then((FetchedData) => {
+        sendResponse({ ...FetchedData });
+      })
+      .catch((error) => {
+        sendResponse({
+          hideEndChatValue: null,
+          FetchedData: null,
+          error: error.message,
+        });
+      });
+
+    return true;
   }
 });
