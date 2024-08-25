@@ -7,7 +7,11 @@ var currentUrl = window.location.href.toLowerCase();
 
 let enableExtension;
 async function main() {
-  if (currentUrl.includes("herocare") || currentUrl.includes("bakeoffice")) {
+  if (
+    currentUrl.includes("herocare") ||
+    currentUrl.includes("bakeoffice") ||
+    currentUrl.includes("localhost")
+  ) {
     await fetchData();
   }
 
@@ -26,14 +30,20 @@ async function main() {
     });
   }
 
-  if (currentUrl.includes("herocare")) {
+  if (currentUrl.includes("localhost")) {
     setInterval(() => {
       BreaksTimer(), hideEndChat();
     }, 1000);
   }
   //UNDER DEVELOPMENT
-  if (currentUrl.includes("herocare")) {
-    addOpenKB();
+  if (currentUrl.includes("localhost")) {
+    startCheckingForElement(
+      '[class*="ticketList"]',
+      (mutationsList, observer) => {
+        markChats();
+      }
+    );
+    // addOpenKB();
     startCheckingForElement(
       '[data-testid="container-com.plugin.chat-box-view"]',
       (mutationsList, observer) => {
@@ -42,12 +52,6 @@ async function main() {
         checkForQuestion();
         checkForRedispatch();
         attachRedispatchLabel();
-      }
-    );
-    startCheckingForElement(
-      '[class*="ticketList"]',
-      (mutationsList, observer) => {
-        markChats();
       }
     );
   }
@@ -897,7 +901,7 @@ const checkForRedispatch = () => {
 
   let redispatchFound = false;
   agentMessages.forEach((message) => {
-    if (containsWhitelistWord(message, ["تحويل"])) {
+    if (containsWhitelistWord(message, ["و تحويل", "تم تحويل "])) {
       console.log(`chat ${activeChat} has  redispatch action`);
 
       redispatchFound = true;
@@ -930,13 +934,16 @@ const attachRedispatchLabel = () => {
           "Redispatch Action detected, check BOA for delay sms in case redispatch";
 
         // Style the label (you can adjust these styles as needed)
-        label.style.backgroundColor = "green";
         label.style.color = "yellow";
+        label.style.textAlign = "center";
+        label.style.backgroundColor = "green";
+        label.style.width = "100%";
         label.style.padding = "5px";
         label.style.marginBottom = "10px"; // Adjusted margin to separate from chat content
-        label.style.fontSize = "12px";
         label.style.fontWeight = "bold";
         label.style.borderRadius = "5px";
+        label.style.borderTopLeftRadius = "0px"; // Adjusted margin to separate from chat content
+        label.style.borderTopRightRadius = "0px"; // Adjusted margin to separate from chat content
         label.style.display = "inline-block";
         label.style.position = "relative"; // Ensure it's not fixed or absolute
 
@@ -955,90 +962,106 @@ const attachRedispatchLabel = () => {
 // Call this function whenever you need to attach the label
 
 const markChats = () => {
-  const activeChats = document.querySelectorAll(".ant-progress-text");
-  if (activeChats.length > 0 && activeChat === 0) {
-    const firstChat = activeChats[0].querySelector("div");
+  const activeChats = document.querySelectorAll('[data-testid^="ticket"]');
+  if (activeChats.length === 1 && activeChat === 0) {
+    const firstChat = activeChats[0];
     if (firstChat && firstChat.id) {
       activeChat = firstChat.id;
     }
   }
   activeChats.forEach((ChatWrapper) => {
-    const chat = ChatWrapper.querySelector("div");
-    const parentEL = ChatWrapper.parentElement.parentElement.parentElement;
-
-    if (!parentEL.dataset.listenerAdded) {
-      parentEL.dataset.listenerAdded = "true";
-      parentEL.addEventListener("click", () => {
-        activeChat = chat.id;
+    if (!ChatWrapper.dataset.listenerAdded) {
+      ChatWrapper.dataset.listenerAdded = "true";
+      ChatWrapper.addEventListener("click", function () {
+        activeChat = ChatWrapper.id;
       });
     }
+    if (!ChatWrapper.id) {
+      ChatWrapper.id = `chat${Math.floor(Math.random() * 100000)}`;
 
-    if (!chat.id) {
-      chat.id = `chat${Math.floor(Math.random() * 100000)}`;
-      observeElement(`#${chat.id}`, (mutationsList, observer) => {
-        const time = chat.textContent.trim();
-        const [minutes, seconds] = time.split(":").map(Number);
-        const totalSeconds = minutes * 60 + seconds;
-        const currentTime = Date.now();
-        let chatStatus = chatHasHold[chat.id]
-          ? 1
-          : chatHasClosure[chat.id]
-          ? 2
-          : chatHasQuestion[chat.id]
-          ? 3
-          : 4;
-        let waitTime =
-          chatStatus === 1
-            ? 10
-            : chatStatus === 2
-            ? 150
-            : chatStatus === 3
-            ? 60
-            : 90;
-        const maxThreshold =
-          chatStatus === 1
-            ? 0
-            : chatStatus === 2
-            ? 120
-            : chatStatus === 3
-            ? 30
-            : 60;
+      startCheckingForElement(
+        `#${ChatWrapper.id}`,
+        (mutationsList, observer) => {
+          const time = ChatWrapper.querySelector(".ant-progress-text")
+            .querySelector("div")
+            .textContent.trim();
+          const [minutes, seconds] = time.split(":").map(Number);
+          const totalSeconds = minutes * 60 + seconds;
+          const currentTime = Date.now();
+          const hasUnread = ChatWrapper.querySelector('[class*="badge"]')
+            ? true
+            : false;
+          let waitTime;
 
-        if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
-          const lastNotification = lastNotificationTimes[chat.id];
-          const sameType =
-            lastNotification && lastNotification.Type === chatStatus;
-          const coolDownTime = sameType ? 20000 : 0;
-
-          if (
-            !lastNotification ||
-            currentTime - lastNotification.currentTime > coolDownTime
-          ) {
-            lastNotificationTimes[chat.id] = {
-              currentTime,
-              Type: chatStatus,
-            };
-
-            const chatText =
-              parentEL.querySelector(".ant-typography").textContent;
-            const imageUrl =
+          let chatStatus = chatHasHold[ChatWrapper.id]
+            ? 1
+            : chatHasClosure[ChatWrapper.id]
+            ? 2
+            : chatHasQuestion[ChatWrapper.id]
+            ? 3
+            : 4;
+          if (hasUnread) {
+            waitTime = 90; // Default value when there are unread messages
+          } else {
+            waitTime =
               chatStatus === 1
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
+                ? 10
                 : chatStatus === 2
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
+                ? 150
                 : chatStatus === 3
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
-                : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
+                ? 60
+                : 90;
+          }
+          const maxThreshold =
+            chatStatus === 1
+              ? 0
+              : chatStatus === 2
+              ? 120
+              : chatStatus === 3
+              ? 30
+              : 60;
 
-            sendNotification(chatText, imageUrl);
+          if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
+            const lastNotification = lastNotificationTimes[ChatWrapper.id];
+            const sameType =
+              lastNotification && lastNotification.Type === chatStatus;
+            const coolDownTime = sameType ? 20000 : 0;
+
+            if (
+              !lastNotification ||
+              currentTime - lastNotification.currentTime > coolDownTime
+            ) {
+              lastNotificationTimes[ChatWrapper.id] = {
+                currentTime,
+                Type: chatStatus,
+              };
+
+              const chatText =
+                ChatWrapper.querySelector(".ant-typography").textContent;
+              const imageUrl =
+                chatStatus === 1
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
+                  : chatStatus === 2
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
+                  : chatStatus === 3
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
+                  : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
+
+              sendNotification(
+                chatText,
+                hasUnread
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694"
+                  : imageUrl
+              );
+            }
           }
         }
-      });
+      );
     }
 
     // Cleanup: If a chat is removed, delete its notification time
     const chatIds = Array.from(activeChats).map(
-      (chatWrapper) => chatWrapper.querySelector("div").id
+      (chatWrapper) => chatWrapper.id
     );
     Object.keys(lastNotificationTimes).forEach((id) => {
       if (!chatIds.includes(id)) {
@@ -1086,56 +1109,30 @@ function allAgentMessages() {
 
   let agentMessages = [];
 
-  messageContainers.forEach((container, index) => {
-    // Check if the current container has message details
-    const senderDetailEL = container.querySelector(
-      '[class*="messageDetails"] span:first-child'
+  messageContainers.forEach((container) => {
+    // Find the class that includes "container" as part of the class name
+    const containerClass = Array.from(container.classList).find((className) =>
+      className.includes("container")
     );
 
-    if (senderDetailEL) {
-      // If the current container has message details, check if it contains "_Xceed"
-      const senderDetail = senderDetailEL.textContent;
-      if (senderDetail.endsWith("_Xceed")) {
+    // If a matching container class is found, proceed
+    if (containerClass) {
+      const computedStyle = window.getComputedStyle(container);
+
+      const textAlign = computedStyle.textAlign;
+
+      if (textAlign === "right") {
         let messageContent = "";
 
-        // Collect all paragraphs in the container
         const paragraphs = container.querySelectorAll(
           '[data-testid="chat-bubble-paragraph"]'
         );
+
         paragraphs.forEach((p) => {
           messageContent += p.innerText.trim() + " "; // Append each paragraph's text
         });
 
-        agentMessages.push(messageContent.trim()); // Trim extra spaces at the end
-      }
-    } else {
-      // If the current container doesn't have message details, check the next container
-      const nextContainer = messageContainers[index + 1];
-
-      if (nextContainer) {
-        const nextSenderDetailEL = nextContainer.querySelector(
-          '[class*="messageDetails"] span:first-child'
-        );
-
-        if (nextSenderDetailEL) {
-          // Get the sender detail from the next container
-          const senderDetail = nextSenderDetailEL.textContent;
-
-          // If the next sender's detail ends with "_Xceed", get the current message
-          if (senderDetail.endsWith("_Xceed")) {
-            let messageContent = "";
-
-            // Collect all paragraphs in the container
-            const paragraphs = container.querySelectorAll(
-              '[data-testid="chat-bubble-paragraph"]'
-            );
-            paragraphs.forEach((p) => {
-              messageContent += p.innerText.trim() + " "; // Append each paragraph's text
-            });
-
-            agentMessages.push(messageContent.trim()); // Trim extra spaces at the end
-          }
-        }
+        agentMessages.push(messageContent.trim());
       }
     }
   });
@@ -1144,7 +1141,7 @@ function allAgentMessages() {
   if (agentMessages.length > 0) {
     return agentMessages;
   } else {
-    return "";
+    return [];
   }
 }
 
@@ -1202,6 +1199,7 @@ function formatTime(seconds) {
 }
 
 const BreaksTimer = async () => {
+  return;
   const CurrentDate = new Date();
   const result = await chrome.storage.local.get(["BreakTimer"]);
 
@@ -1922,7 +1920,30 @@ function updateCustomerNumbersPanel(customerData) {
     });
   });
 
-  panel.appendChild(table);
+  const finalRows = table.querySelectorAll("tbody tr");
+  if (finalRows.length === 1) {
+    const errorHeading = document.createElement("h2");
+    errorHeading.textContent =
+      "There is an error, check the numbers manually or refresh the page";
+    errorHeading.style.textAlign = "center";
+    errorHeading.style.color = "red";
+    panel.appendChild(errorHeading);
+  }
+  finalRows.forEach(function (row, index) {
+    if (index === 0) {
+      return;
+    }
+    const customerName = row.cells[0].textContent;
+    if (customerName === customerOriginalName) {
+      panel.appendChild(table);
+      return;
+    } else {
+      const errorHeading = document.createElement("h2");
+      errorHeading.textContent =
+        "There is an error, check the numbers manually or refresh the page";
+      doucment.querySelector("#CSNumbers-panel").appendChild(errorHeading);
+    }
+  });
 }
 
 function copyToClipboard(text) {
