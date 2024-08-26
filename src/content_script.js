@@ -7,11 +7,7 @@ var currentUrl = window.location.href.toLowerCase();
 
 let enableExtension;
 async function main() {
-  if (
-    currentUrl.includes("herocare") ||
-    currentUrl.includes("bakeoffice") ||
-    currentUrl.includes("localhost")
-  ) {
+  if (currentUrl.includes("herocare") || currentUrl.includes("bakeoffice")) {
     await fetchData();
   }
 
@@ -30,20 +26,10 @@ async function main() {
     });
   }
 
-  if (currentUrl.includes("localhost")) {
+  if (currentUrl.includes("herocare")) {
     setInterval(() => {
       BreaksTimer(), hideEndChat();
     }, 1000);
-  }
-  //UNDER DEVELOPMENT
-  if (currentUrl.includes("localhost")) {
-    startCheckingForElement(
-      '[class*="ticketList"]',
-      (mutationsList, observer) => {
-        markChats();
-      }
-    );
-    // addOpenKB();
     startCheckingForElement(
       '[data-testid="container-com.plugin.chat-box-view"]',
       (mutationsList, observer) => {
@@ -54,7 +40,17 @@ async function main() {
         attachRedispatchLabel();
       }
     );
+    startCheckingForElement(
+      '[class*="ticketList"]',
+      (mutationsList, observer) => {
+        markChats();
+      }
+    );
   }
+  //UNDER DEVELOPMENT
+  // if (currentUrl.includes("herocare")) {
+  // addOpenKB();
+  // }
   //UNDER DEVELOPMENT
 }
 function observeElement(selector, callback) {
@@ -603,7 +599,6 @@ const addOpenKB = () => {
     }
   }, interval);
 };
-
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR FreshChat FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -927,27 +922,21 @@ const attachRedispatchLabel = () => {
 
     if (chatHasRedispatch[activeChat]) {
       if (!label) {
-        // Create the label element
         label = document.createElement("div");
         label.classList.add("redispatch-label");
         label.textContent =
-          "Redispatch Action detected, check BOA for delay sms in case redispatch";
-
-        // Style the label (you can adjust these styles as needed)
+          "Redispatch Case detected, check BOA for delay sms in case redispatch";
         label.style.color = "yellow";
         label.style.textAlign = "center";
         label.style.backgroundColor = "green";
         label.style.width = "100%";
         label.style.padding = "5px";
-        label.style.marginBottom = "10px"; // Adjusted margin to separate from chat content
+        label.style.marginBottom = "10px";
         label.style.fontWeight = "bold";
         label.style.borderRadius = "5px";
-        label.style.borderTopLeftRadius = "0px"; // Adjusted margin to separate from chat content
-        label.style.borderTopRightRadius = "0px"; // Adjusted margin to separate from chat content
-        label.style.display = "inline-block";
-        label.style.position = "relative"; // Ensure it's not fixed or absolute
-
-        // Insert the label at the top of the chat container
+        label.style.borderTopLeftRadius = "0px";
+        label.style.borderTopRightRadius = "0px";
+        label.style.position = "relative";
         chatContainer.insertBefore(label, chatContainer.firstChild);
       }
     } else {
@@ -958,110 +947,108 @@ const attachRedispatchLabel = () => {
     }
   }
 };
-
-// Call this function whenever you need to attach the label
-
 const markChats = () => {
-  const activeChats = document.querySelectorAll('[data-testid^="ticket"]');
-  if (activeChats.length === 1 && activeChat === 0) {
-    const firstChat = activeChats[0];
+  const activeChats = document.querySelectorAll(".ant-progress-text");
+  if (activeChats.length === 0) {
+    activeChat = 0;
+  }
+  if (activeChats.length == 1 && activeChat === 0) {
+    const firstChat = activeChats[0].querySelector("div");
     if (firstChat && firstChat.id) {
       activeChat = firstChat.id;
     }
   }
   activeChats.forEach((ChatWrapper) => {
-    if (!ChatWrapper.dataset.listenerAdded) {
-      ChatWrapper.dataset.listenerAdded = "true";
-      ChatWrapper.addEventListener("click", function () {
-        activeChat = ChatWrapper.id;
+    const chat = ChatWrapper.querySelector("div");
+    const parentEL = ChatWrapper.parentElement.parentElement.parentElement;
+
+    if (!parentEL.dataset.listenerAdded) {
+      parentEL.dataset.listenerAdded = "true";
+      parentEL.addEventListener("click", () => {
+        activeChat = chat.id;
       });
     }
-    if (!ChatWrapper.id) {
-      ChatWrapper.id = `chat${Math.floor(Math.random() * 100000)}`;
 
-      startCheckingForElement(
-        `#${ChatWrapper.id}`,
-        (mutationsList, observer) => {
-          const time = ChatWrapper.querySelector(".ant-progress-text")
-            .querySelector("div")
-            .textContent.trim();
-          const [minutes, seconds] = time.split(":").map(Number);
-          const totalSeconds = minutes * 60 + seconds;
-          const currentTime = Date.now();
-          const hasUnread = ChatWrapper.querySelector('[class*="badge"]')
-            ? true
-            : false;
-          let waitTime;
+    if (!chat.id) {
+      chat.id = `chat${Math.floor(Math.random() * 100000)}`;
+      observeElement(`#${chat.id}`, (mutationsList, observer) => {
+        const time = chat.textContent.trim();
+        const [minutes, seconds] = time.split(":").map(Number);
+        const totalSeconds = minutes * 60 + seconds;
+        const currentTime = Date.now();
+        const hasUnread = parentEL.querySelector('[class*="badge"]')
+          ? true
+          : false;
+        let waitTime;
 
-          let chatStatus = chatHasHold[ChatWrapper.id]
-            ? 1
-            : chatHasClosure[ChatWrapper.id]
-            ? 2
-            : chatHasQuestion[ChatWrapper.id]
-            ? 3
-            : 4;
-          if (hasUnread) {
-            waitTime = 90; // Default value when there are unread messages
-          } else {
-            waitTime =
-              chatStatus === 1
-                ? 10
-                : chatStatus === 2
-                ? 150
-                : chatStatus === 3
-                ? 60
-                : 90;
-          }
-          const maxThreshold =
+        let chatStatus = chatHasHold[chat.id]
+          ? 1
+          : chatHasClosure[chat.id]
+          ? 2
+          : chatHasQuestion[chat.id]
+          ? 3
+          : 4;
+        if (hasUnread) {
+          waitTime = 90;
+        } else {
+          waitTime =
             chatStatus === 1
-              ? 0
+              ? 10
               : chatStatus === 2
-              ? 120
+              ? 150
               : chatStatus === 3
-              ? 30
-              : 60;
+              ? 60
+              : 90;
+        }
+        const maxThreshold =
+          chatStatus === 1
+            ? 0
+            : chatStatus === 2
+            ? 120
+            : chatStatus === 3
+            ? 30
+            : 60;
 
-          if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
-            const lastNotification = lastNotificationTimes[ChatWrapper.id];
-            const sameType =
-              lastNotification && lastNotification.Type === chatStatus;
-            const coolDownTime = sameType ? 20000 : 0;
+        if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
+          const lastNotification = lastNotificationTimes[chat.id];
+          const sameType =
+            lastNotification && lastNotification.Type === chatStatus;
+          const coolDownTime = sameType ? 20000 : 0;
 
-            if (
-              !lastNotification ||
-              currentTime - lastNotification.currentTime > coolDownTime
-            ) {
-              lastNotificationTimes[ChatWrapper.id] = {
-                currentTime,
-                Type: chatStatus,
-              };
+          if (
+            !lastNotification ||
+            currentTime - lastNotification.currentTime > coolDownTime
+          ) {
+            lastNotificationTimes[chat.id] = {
+              currentTime,
+              Type: chatStatus,
+            };
 
-              const chatText =
-                ChatWrapper.querySelector(".ant-typography").textContent;
-              const imageUrl =
-                chatStatus === 1
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
-                  : chatStatus === 2
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
-                  : chatStatus === 3
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
-                  : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
+            const chatText =
+              parentEL.querySelector(".ant-typography").textContent;
+            const imageUrl =
+              chatStatus === 1
+                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
+                : chatStatus === 2
+                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
+                : chatStatus === 3
+                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
+                : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
 
-              sendNotification(
-                chatText,
-                hasUnread
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694"
-                  : imageUrl
-              );
-            }
+            sendNotification(
+              chatText,
+              hasUnread
+                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694"
+                : imageUrl
+            );
           }
         }
-      );
+      });
     }
 
     // Cleanup: If a chat is removed, delete its notification time
     const chatIds = Array.from(activeChats).map(
-      (chatWrapper) => chatWrapper.id
+      (chatWrapper) => chatWrapper.querySelector("div").id
     );
     Object.keys(lastNotificationTimes).forEach((id) => {
       if (!chatIds.includes(id)) {
@@ -1197,9 +1184,7 @@ function formatTime(seconds) {
     remainingSeconds
   ).padStart(2, "0")}`;
 }
-
 const BreaksTimer = async () => {
-  return;
   const CurrentDate = new Date();
   const result = await chrome.storage.local.get(["BreakTimer"]);
 
@@ -1629,6 +1614,7 @@ const getPreviousSMS = () => {
       warningText.style.marginBottom = "5px";
       warningText.style.color = "red";
       DelaySMSTime.appendChild(warningText);
+      return;
     } else {
       warningText.innerHTML = "Delay SMS not sent";
       warningText.style.marginTop = "5px";
@@ -1919,7 +1905,7 @@ function updateCustomerNumbersPanel(customerData) {
       cellNumbers.appendChild(numberContainer);
     });
   });
-
+  //error handling
   const finalRows = table.querySelectorAll("tbody tr");
   if (finalRows.length === 1) {
     const errorHeading = document.createElement("h2");
@@ -1941,7 +1927,7 @@ function updateCustomerNumbersPanel(customerData) {
       const errorHeading = document.createElement("h2");
       errorHeading.textContent =
         "There is an error, check the numbers manually or refresh the page";
-      doucment.querySelector("#CSNumbers-panel").appendChild(errorHeading);
+      document.querySelector("#CSNumbers-panel").appendChild(errorHeading);
     }
   });
 }
