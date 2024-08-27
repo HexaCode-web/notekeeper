@@ -11,13 +11,22 @@ const General = () => {
     BreakTimer: JSON.parse(localStorage.getItem("BreakTimer")),
     WrapNotes: JSON.parse(localStorage.getItem("WrapNotes")),
     DefaultPage: localStorage.getItem("DefaultPage"),
+    // allowTimeFrame:
+    //   JSON.parse(localStorage.getItem("allowTimeFrame")) === undefined
+    //     ? true
+    //     : JSON.parse(localStorage.getItem("allowTimeFrame")),
   });
+  // console.log(
+  //   settings.allowTimeFrame,
+  //   JSON.parse(localStorage.getItem("allowTimeFrame"))
+  // );
   const options = [
     { value: "Updates", label: "Change log" },
     { value: "Notes", label: "Notes" },
     { value: "Profile", label: "Profile" },
     { value: "Settings", label: "Settings" },
   ];
+
   const handleCheckboxChange = (event, name) => {
     const checked = event;
 
@@ -43,6 +52,11 @@ const General = () => {
       localStorage.setItem("WrapNotes", checked);
       chrome.storage.local.set({ WrapNotes: checked });
     }
+    // } else if (name === "allowTimeFrame") {
+    //   setSettings((prev) => ({ ...prev, allowTimeFrame: checked }));
+    //   localStorage.setItem("allowTimeFrame", checked);
+    //   chrome.storage.local.set({ allowTimeFrame: checked });
+    // }
   };
 
   const handleChange = (selectedOption) => {
@@ -124,6 +138,20 @@ const General = () => {
             />
           </label>
         </div>
+        {/* <div className="reorderCheckBox">
+          <label>
+            <span>TimeFrame alert</span>
+            <Switch
+              onChange={(Checked) => {
+                handleCheckboxChange(Checked, "allowTimeFrame");
+              }}
+              checked={settings.allowTimeFrame}
+              height={20}
+              width={40}
+              onColor="#8f54a0"
+            />
+          </label>
+        </div> */}
         <div
           className="CheckWrapper"
           style={{ justifyContent: "space-between", width: "400px" }}
@@ -135,6 +163,7 @@ const General = () => {
             placeholder="Start up page"
           />
         </div>
+
         {/* <div className="reorderCheckBox" title="تصغير الملاحظات">
           <label title="تصغير الملاحظات">
             <span>auto Wrap Notes</span>

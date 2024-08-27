@@ -6,8 +6,13 @@ import { differenceInSeconds } from "date-fns";
 var currentUrl = window.location.href.toLowerCase();
 
 let enableExtension;
+// let timeFrameSettings;
 async function main() {
-  if (currentUrl.includes("herocare") || currentUrl.includes("bakeoffice")) {
+  if (
+    currentUrl.includes("herocare") ||
+    currentUrl.includes("bakeoffice") ||
+    currentUrl.includes("localhost")
+  ) {
     await fetchData();
   }
 
@@ -26,7 +31,7 @@ async function main() {
     });
   }
 
-  if (currentUrl.includes("herocare")) {
+  if (currentUrl.includes("herocare") || currentUrl.includes("localhost")) {
     setInterval(() => {
       BreaksTimer(), hideEndChat();
     }, 1000);
@@ -92,6 +97,13 @@ document.addEventListener("DOMContentLoaded", main);
 //FOR FetchingData function
 //--------------------------------------------------------------------------------------------------------------------------------------------
 const fetchData = async () => {
+  // timeFrameSettings = await chrome.storage.local.get([
+  //   "allowTimeFrame",
+  //   "silenceAlert",
+  //   "holdAlert",
+  // ]);
+  // console.log(timeFrameSettings);
+
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: "FetchData" }, (response) => {
       localStorage.setItem(
@@ -108,7 +120,6 @@ const fetchData = async () => {
       chrome.storage.sync.set({ enableExtension: response.enableExtension });
 
       localStorage.setItem("holdWhiteList", JSON.stringify(response.Hold));
-
       if (response.hideEndChat) {
         localStorage.setItem("endChatValue", "true");
       } else {
@@ -851,6 +862,7 @@ document.addEventListener("keydown", handleKeyboardInput, true);
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR the notification function
 //--------------------------------------------------------------------------------------------------------------------------------------------
+
 let chatHasHold = [false, false, false];
 let chatHasClosure = [false, false, false];
 let chatHasQuestion = [false, false, false];
@@ -865,29 +877,29 @@ function containsWhitelistWord(message, whitelist) {
 }
 const checkForHold = () => {
   if (containsWhitelistWord(lastAgentMessage(), holdWhiteList)) {
-    console.log(`chat ${activeChat} has hold`);
+    console.log(`${activeChat} has hold`);
     chatHasHold[activeChat] = true;
   } else {
-    console.log(`chat ${activeChat} has  no hold`);
+    console.log(`${activeChat} has  no hold`);
     chatHasHold[activeChat] = false;
   }
 };
 const checkForQuestion = () => {
   if (containsWhitelistWord(lastAgentMessage(), questionWhiteList)) {
-    console.log(`chat ${activeChat} has question`);
+    console.log(`${activeChat} has question`);
     chatHasQuestion[activeChat] = true;
   } else {
-    console.log(`chat ${activeChat} has no question`);
+    console.log(`${activeChat} has no question`);
     chatHasQuestion[activeChat] = false;
   }
 };
 
 const checkForClosure = () => {
   if (containsWhitelistWord(lastAgentMessage(), closureWhiteList)) {
-    console.log(`chat ${activeChat} has closure`);
+    console.log(`${activeChat} has closure`);
     chatHasClosure[activeChat] = true;
   } else {
-    console.log(`chat ${activeChat} has  no closure`);
+    console.log(`${activeChat} has  no closure`);
     chatHasClosure[activeChat] = false;
   }
 };
@@ -896,8 +908,8 @@ const checkForRedispatch = () => {
 
   let redispatchFound = false;
   agentMessages.forEach((message) => {
-    if (containsWhitelistWord(message, ["و تحويل", "تم تحويل "])) {
-      console.log(`chat ${activeChat} has  redispatch action`);
+    if (containsWhitelistWord(message, ["التحويل", "و تحويل", "تم تحويل "])) {
+      console.log(`${activeChat} has  redispatch action`);
 
       redispatchFound = true;
     }
@@ -906,7 +918,7 @@ const checkForRedispatch = () => {
   if (redispatchFound) {
     chatHasRedispatch[activeChat] = true;
   } else {
-    console.log(`chat ${activeChat} has no redispatch action`);
+    console.log(`${activeChat} has no redispatch action`);
     chatHasRedispatch[activeChat] = false;
   }
 };
@@ -947,51 +959,53 @@ const attachRedispatchLabel = () => {
     }
   }
 };
+
 const markChats = () => {
-  const activeChats = document.querySelectorAll(".ant-progress-text");
+  // if (timeFrameSettings.allowTimeFrame === false) {
+  //   console.log("timeFrame is disabled");
+  //   return;
+  // }
+  const activeChats = document.querySelectorAll('[data-testid^="ticket"]');
   if (activeChats.length === 0) {
     activeChat = 0;
   }
-  if (activeChats.length == 1 && activeChat === 0) {
-    const firstChat = activeChats[0].querySelector("div");
+  if (activeChats.length === 1 && activeChat === 0) {
+    const firstChat = activeChats[0];
     if (firstChat && firstChat.id) {
       activeChat = firstChat.id;
     }
   }
   activeChats.forEach((ChatWrapper) => {
-    const chat = ChatWrapper.querySelector("div");
-    const parentEL = ChatWrapper.parentElement.parentElement.parentElement;
-
-    if (!parentEL.dataset.listenerAdded) {
-      parentEL.dataset.listenerAdded = "true";
-      parentEL.addEventListener("click", () => {
-        activeChat = chat.id;
+    if (!ChatWrapper.dataset.listenerAdded) {
+      ChatWrapper.dataset.listenerAdded = "true";
+      ChatWrapper.addEventListener("click", function () {
+        activeChat = ChatWrapper.id;
       });
     }
+    if (!ChatWrapper.id) {
+      ChatWrapper.id = `chat${Math.floor(Math.random() * 100000)}`;
 
-    if (!chat.id) {
-      chat.id = `chat${Math.floor(Math.random() * 100000)}`;
-      observeElement(`#${chat.id}`, (mutationsList, observer) => {
-        const time = chat.textContent.trim();
-        const [minutes, seconds] = time.split(":").map(Number);
-        const totalSeconds = minutes * 60 + seconds;
-        const currentTime = Date.now();
-        const hasUnread = parentEL.querySelector('[class*="badge"]')
-          ? true
-          : false;
-        let waitTime;
+      startCheckingForElement(
+        `#${ChatWrapper.id}`,
+        (mutationsList, observer) => {
+          const time = ChatWrapper.querySelector(".ant-progress-text")
+            .querySelector("div")
+            .textContent.trim();
+          const [minutes, seconds] = time.split(":").map(Number);
+          const totalSeconds = minutes * 60 + seconds;
+          const currentTime = Date.now();
+          const hasUnread = ChatWrapper.querySelector('[class*="badge"]')
+            ? true
+            : false;
+          let chatStatus = chatHasHold[ChatWrapper.id]
+            ? 1
+            : chatHasClosure[ChatWrapper.id]
+            ? 2
+            : chatHasQuestion[ChatWrapper.id]
+            ? 3
+            : 4;
 
-        let chatStatus = chatHasHold[chat.id]
-          ? 1
-          : chatHasClosure[chat.id]
-          ? 2
-          : chatHasQuestion[chat.id]
-          ? 3
-          : 4;
-        if (hasUnread) {
-          waitTime = 90;
-        } else {
-          waitTime =
+          let waitTime =
             chatStatus === 1
               ? 10
               : chatStatus === 2
@@ -999,56 +1013,52 @@ const markChats = () => {
               : chatStatus === 3
               ? 60
               : 90;
-        }
-        const maxThreshold =
-          chatStatus === 1
-            ? 0
-            : chatStatus === 2
-            ? 120
-            : chatStatus === 3
-            ? 30
-            : 60;
 
-        if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
-          const lastNotification = lastNotificationTimes[chat.id];
-          const sameType =
-            lastNotification && lastNotification.Type === chatStatus;
-          const coolDownTime = sameType ? 20000 : 0;
+          const maxThreshold =
+            chatStatus === 1
+              ? 0
+              : chatStatus === 2
+              ? 120
+              : chatStatus === 3
+              ? 30
+              : 60;
 
-          if (
-            !lastNotification ||
-            currentTime - lastNotification.currentTime > coolDownTime
-          ) {
-            lastNotificationTimes[chat.id] = {
-              currentTime,
-              Type: chatStatus,
-            };
+          if (totalSeconds <= waitTime && totalSeconds >= maxThreshold) {
+            const lastNotification = lastNotificationTimes[ChatWrapper.id];
+            const sameType =
+              lastNotification && lastNotification.Type === chatStatus;
+            const coolDownTime = sameType ? 20000 : 0;
 
-            const chatText =
-              parentEL.querySelector(".ant-typography").textContent;
-            const imageUrl =
-              chatStatus === 1
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
-                : chatStatus === 2
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
-                : chatStatus === 3
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
-                : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
+            if (
+              !lastNotification ||
+              currentTime - lastNotification.currentTime > coolDownTime
+            ) {
+              lastNotificationTimes[ChatWrapper.id] = {
+                currentTime,
+                Type: chatStatus,
+              };
 
-            sendNotification(
-              chatText,
-              hasUnread
-                ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694"
-                : imageUrl
-            );
+              const chatText =
+                ChatWrapper.querySelector(".ant-typography").textContent;
+              const imageUrl =
+                chatStatus === 1
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
+                  : chatStatus === 2
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
+                  : chatStatus === 3
+                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
+                  : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
+
+              sendNotification(chatText, imageUrl);
+            }
           }
         }
-      });
+      );
     }
 
     // Cleanup: If a chat is removed, delete its notification time
     const chatIds = Array.from(activeChats).map(
-      (chatWrapper) => chatWrapper.querySelector("div").id
+      (chatWrapper) => chatWrapper.id
     );
     Object.keys(lastNotificationTimes).forEach((id) => {
       if (!chatIds.includes(id)) {
@@ -1057,7 +1067,6 @@ const markChats = () => {
     });
   });
 };
-
 function lastAgentMessage() {
   // Get all message containers
   const messageContainers = document.querySelectorAll(

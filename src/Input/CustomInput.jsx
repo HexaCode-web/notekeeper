@@ -10,7 +10,8 @@ const CustomInput = ({
   onChangeFunction,
   required,
   name,
-
+maxValue,
+minValue,
   id,
   customWidth,
 }) => {
@@ -60,6 +61,7 @@ const CustomInput = ({
           required={required}
           rows={calculateLineHeight()}
           onChange={onChangeFunction}
+          
         ></textarea>
       ) : (
         <div>
@@ -79,6 +81,8 @@ const CustomInput = ({
             name={name}
             id={id ? id : name}
             required={required}
+            max={maxValue}
+            min={minValue}
             onChange={onChangeFunction}
           />
           {type === "password" && (
