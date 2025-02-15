@@ -10,31 +10,32 @@ import Profile from "./Pages/Profile";
 import Dashboard from "./Pages/Dashboard";
 import Updates from "./Pages/Updates";
 import Switch from "react-switch";
-import CustomInput from "../Input/CustomInput";
 
 const Options = () => {
   const [firstRender, setFirstRender] = useState(true);
   const [notesChanged, setNotesChanged] = useState(false);
-  // const [settings, setSettings] = useState({
-  //   allowTimeFrame:
-  //     JSON.parse(localStorage.getItem("allowTimeFrame")) === undefined
-  //       ? true
-  //       : JSON.parse(localStorage.getItem("allowTimeFrame")),
-  //   silenceAlert: JSON.parse(localStorage.getItem("silenceAlert"))
-  //     ? JSON.parse(localStorage.getItem("allowTimeFrame"))
-  //     : 90,
-  //   holdAlert: JSON.parse(localStorage.getItem("holdAlert"))
-  //     ? JSON.parse(localStorage.getItem("holdAlert"))
-  //     : 10,
-  // });
-  // const handleCheckboxChange = (event, name) => {
-  //   const checked = event;
-  //   if (name === "AllowTimeFrame") {
-  //     setSettings((prev) => ({ ...prev, allowTimeFrame: checked }));
-  //     localStorage.setItem("allowTimeFrame", checked);
-  //     chrome.storage.local.set({ allowTimeFrame: checked });
-  //   }
-  // };s
+  const [settings, setSettings] = useState({
+    allowTimeFrame:
+      JSON.parse(localStorage.getItem("allowTimeFrame")) === null || undefined
+        ? true
+        : JSON.parse(localStorage.getItem("allowTimeFrame")),
+    // silenceAlert: JSON.parse(localStorage.getItem("silenceAlert"))
+    //   ? JSON.parse(localStorage.getItem("allowTimeFrame"))
+    //   : 90,
+    // holdAlert: JSON.parse(localStorage.getItem("holdAlert"))
+    //   ? JSON.parse(localStorage.getItem("holdAlert"))
+    //   : 10,
+  });
+  const handleCheckboxChange = (event, name) => {
+    const checked = event;
+
+    if (name === "allowTimeFrame") {
+      setSettings((prev) => ({ ...prev, allowTimeFrame: checked }));
+      localStorage.setItem("allowTimeFrame", checked);
+      chrome.storage.local.set({ allowTimeFrame: checked });
+    }
+  };
+  console.log(JSON.parse(localStorage.getItem("allowTimeFrame")));
   // const handleSettingsChange = (e) => {
   //   const { name, value } = e.target;
 
@@ -61,7 +62,7 @@ const Options = () => {
   // };
 
   const [activePage, setActivePage] = useState(
-    localStorage.getItem("DefaultPage") || "Updates"
+    localStorage.getItem("DefaultPage") || "Notes"
   );
   const [User, setUser] = React.useState(
     JSON.parse(localStorage.getItem("ActiveUser")) || null
@@ -210,21 +211,22 @@ const Options = () => {
           <h1>
             no user found, open noteKeeper and login then refresh the page
           </h1>
-          {/* <div className="reorderCheckBox">
+          <div className="reorderCheckBox">
             <label>
-              <span>Timeframe Alert</span>
+              <span>Timeframe Alerts</span>
               <Switch
                 onChange={(Checked) => {
                   handleCheckboxChange(Checked, "allowTimeFrame");
                 }}
                 checked={settings.allowTimeFrame}
                 height={20}
+                name="allowTimeFrame"
                 width={40}
                 onColor="#8f54a0"
               />
             </label>
           </div>
-          <CustomInput
+          {/* <CustomInput
             value={settings.silenceAlert}
             type="number"
             onChangeFunction={handleSettingsChange}
@@ -302,7 +304,7 @@ const Options = () => {
       )}
 
       <p style={{ textAlign: "center", fontSize: "1.05rem" }}>
-        Version: 3.3.3 • Created by Marco
+        Version: 3.4.5 • Created by Marco
       </p>
     </>
   );

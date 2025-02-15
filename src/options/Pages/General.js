@@ -11,15 +11,15 @@ const General = () => {
     BreakTimer: JSON.parse(localStorage.getItem("BreakTimer")),
     WrapNotes: JSON.parse(localStorage.getItem("WrapNotes")),
     DefaultPage: localStorage.getItem("DefaultPage"),
-    // allowTimeFrame:
-    //   JSON.parse(localStorage.getItem("allowTimeFrame")) === undefined
-    //     ? true
-    //     : JSON.parse(localStorage.getItem("allowTimeFrame")),
+    allowTimeFrame:
+      JSON.parse(localStorage.getItem("allowTimeFrame")) == undefined
+        ? true
+        : JSON.parse(localStorage.getItem("allowTimeFrame")),
   });
-  // console.log(
-  //   settings.allowTimeFrame,
-  //   JSON.parse(localStorage.getItem("allowTimeFrame"))
-  // );
+  console.log(
+    settings.allowTimeFrame,
+    JSON.parse(localStorage.getItem("allowTimeFrame"))
+  );
   const options = [
     { value: "Updates", label: "Change log" },
     { value: "Notes", label: "Notes" },
@@ -51,12 +51,11 @@ const General = () => {
       setSettings((prev) => ({ ...prev, WrapNotes: checked }));
       localStorage.setItem("WrapNotes", checked);
       chrome.storage.local.set({ WrapNotes: checked });
+    } else if (name === "allowTimeFrame") {
+      setSettings((prev) => ({ ...prev, allowTimeFrame: checked }));
+      localStorage.setItem("allowTimeFrame", checked);
+      chrome.storage.local.set({ allowTimeFrame: checked });
     }
-    // } else if (name === "allowTimeFrame") {
-    //   setSettings((prev) => ({ ...prev, allowTimeFrame: checked }));
-    //   localStorage.setItem("allowTimeFrame", checked);
-    //   chrome.storage.local.set({ allowTimeFrame: checked });
-    // }
   };
 
   const handleChange = (selectedOption) => {
@@ -138,9 +137,9 @@ const General = () => {
             />
           </label>
         </div>
-        {/* <div className="reorderCheckBox">
+        <div className="reorderCheckBox">
           <label>
-            <span>TimeFrame alert</span>
+            <span>TimeFrame alerts</span>
             <Switch
               onChange={(Checked) => {
                 handleCheckboxChange(Checked, "allowTimeFrame");
@@ -151,7 +150,7 @@ const General = () => {
               onColor="#8f54a0"
             />
           </label>
-        </div> */}
+        </div>
         <div
           className="CheckWrapper"
           style={{ justifyContent: "space-between", width: "400px" }}

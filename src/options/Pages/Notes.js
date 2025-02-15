@@ -54,6 +54,7 @@ const Notes = ({ notesClone, User, setUser, setNotesClone, SaveUser }) => {
     setUser((prev) => {
       return { ...prev, Notes };
     });
+    updateNotes();
     CreateToast("تم عمل الملاحظة", "success");
     setNewNote({
       pinned: false,

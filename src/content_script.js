@@ -6,12 +6,13 @@ import { differenceInSeconds } from "date-fns";
 var currentUrl = window.location.href.toLowerCase();
 
 let enableExtension;
-// let timeFrameSettings;
+let timeFrameSettings;
 async function main() {
   if (
     currentUrl.includes("herocare") ||
     currentUrl.includes("bakeoffice") ||
-    currentUrl.includes("localhost")
+    currentUrl.includes("localhost") ||
+    currentUrl.includes("hurrier")
   ) {
     await fetchData();
   }
@@ -21,38 +22,97 @@ async function main() {
     return;
   }
   console.log("Extension is enabled");
+  // if (currentUrl.includes("hurrier")) {
+  //   extractTimeChecks();
+  //   // riderTimeChecks();
+  // }
+  if (currentUrl.includes("hurrier")) {
+    const modifyDistance = localStorage.getItem("modifyDistance");
+    console.log(modifyDistance);
 
-  if (currentUrl.includes("bakeoffice")) {
-    startCheckingForElement("#orderId", (mutationsList, observer) => {
-      watchClicks(`li[heading="Last Orders"]`);
-      checkForWrapper();
-      PDTCalc();
-      getPreviousSMS();
-    });
-  }
+    if (modifyDistance === "true") {
+      startCheckingForElement(
+        ".SideSheet-Content",
+        (mutationsList, observer) => {
+          const distances = document.querySelectorAll(
+            'td[data-columnid="reach_to_step"]'
+          );
 
-  if (currentUrl.includes("herocare") || currentUrl.includes("localhost")) {
-    setInterval(() => {
-      BreaksTimer(), hideEndChat();
-    }, 1000);
-    startCheckingForElement(
-      '[data-testid="container-com.plugin.chat-box-view"]',
-      (mutationsList, observer) => {
-        checkForHold();
-        checkForClosure();
-        checkForQuestion();
-        checkForRedispatch();
-        attachRedispatchLabel();
-      }
-    );
-    startCheckingForElement(
-      '[class*="ticketList"]',
-      (mutationsList, observer) => {
-        markChats();
-      }
-    );
+          distances.forEach((distance) => {
+            const distanceNumber = parseInt(distance.textContent, 10);
+
+            // Check if the number is less than 5000
+            if (distanceNumber < 5000) {
+              // Generate a random number between 5000 and 10000
+              const randomNumber =
+                Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
+
+              // Update the text content of the cell with the new random number
+              distance.textContent = `${randomNumber}m`; // Add "m" if needed
+              console.log(`Replaced ${distanceNumber} with ${randomNumber}`);
+            }
+          });
+        }
+      );
+    }
   }
+  // if (currentUrl.includes("bakeoffice")) {
+  //   startCheckingForElement("#orderId", (mutationsList, observer) => {
+  //     let checkInterval = setInterval(function () {
+  //       let targetNode = document.querySelector(".yellow");
+  //       if (targetNode) {
+  //         clearInterval(checkInterval);
+  //         targetNode.addEventListener("click", () => {
+  //           watchClicks('li[heading="Last Orders"]');
+  //           checkForWrapper();
+  //           getPreviousSMS();
+  //         });
+  //       }
+  //     }, 100);
+  //     watchClicks(`li[heading="Last Orders"]`);
+  //     checkForWrapper();
+  //     getPreviousSMS();
+  //   });
+  // }
+
+  // if (currentUrl.includes("herocare") || currentUrl.includes("localhost")) {
+  //   const caseTicketElement = document.querySelector(
+  //     'li[data-cy="cs-agent_side-bar-menu-Case Ticket"]'
+  //   );
+  //   if (caseTicketElement) {
+  //     caseTicketElement.addEventListener("click", function () {
+  //       checkForHold();
+  //       checkForClosure();
+  //       checkForQuestion();
+  //       checkForRedispatch();
+  //       attachRedispatchLabel();
+  //     });
+  //   }
+  //   startCheckingForElement(
+  //     '[data-testid="container-com.plugin.chat-box-view"]',
+  //     (mutationsList, observer) => {
+  //       //found in unUsedCode.js
+  //       // getRiderName();
+  //       checkForHold();
+  //       checkForClosure();
+  //       checkForQuestion();
+  //       checkForRedispatch();
+  //       attachRedispatchLabel();
+  //     }
+  //   );
+  //   setInterval(() => {
+  //     BreaksTimer(), hideEndChat();
+  //   }, 1000);
+  //   startCheckingForElement(
+  //     '[class*="ticketList"]',
+  //     (mutationsList, observer) => {
+  //       markChats();
+  //     },
+  //     300
+  //   );
+  // }
   //UNDER DEVELOPMENT
+  //found in unUsedCode.js
   // if (currentUrl.includes("herocare")) {
   // addOpenKB();
   // }
@@ -81,12 +141,17 @@ function observeElement(selector, callback) {
 
   observer.observe(targetNode, config);
 }
-function startCheckingForElement(selector, callback) {
-  const interval = 100;
+function startCheckingForElement(
+  selector,
+  callback,
+  interval = 100,
+  maxRetries = 50
+) {
+  let retries = 0;
   const checkInterval = setInterval(() => {
     const targetNode = document.querySelector(selector);
+
     if (targetNode) {
-      clearInterval(checkInterval);
       observeElement(selector, callback);
     }
   }, interval);
@@ -97,13 +162,7 @@ document.addEventListener("DOMContentLoaded", main);
 //FOR FetchingData function
 //--------------------------------------------------------------------------------------------------------------------------------------------
 const fetchData = async () => {
-  // timeFrameSettings = await chrome.storage.local.get([
-  //   "allowTimeFrame",
-  //   "silenceAlert",
-  //   "holdAlert",
-  // ]);
-  // console.log(timeFrameSettings);
-
+  timeFrameSettings = await chrome.storage.local.get(["allowTimeFrame"]);
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: "FetchData" }, (response) => {
       localStorage.setItem(
@@ -125,491 +184,17 @@ const fetchData = async () => {
       } else {
         localStorage.setItem("endChatValue", "false");
       }
+      if (response.modifyDistance) {
+        localStorage.setItem("modifyDistance", "true");
+      } else {
+        localStorage.setItem("modifyDistance", "false");
+      }
 
       resolve(); // Resolve when done
     });
   });
 };
-//--------------------------------------------------------------------------------------------------------------------------------------------
-//FOR openKB function
-//--------------------------------------------------------------------------------------------------------------------------------------------
-const addOpenKB = () => {
-  const options = [
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/add-extra-couriers?pli=1&authuser=1",
-      label: "Large order",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/missing-wrong-items-or-order?pli=1&authuser=1",
-      label: "Missing item",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-spillage?pli=1&authuser=1",
-      label: "Spilled/Damaged",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/ask-to-re-arrange-the-orders?pli=1&authuser=1",
-      label: "Stacked order, ask for dropoff",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-delivery-address-issues?pli=1&authuser=1",
-      label: "Address Change (Changed address)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-delivery-address-issues?pli=1&authuser=1",
-      label: "Address Change (Incomplete address)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-delivery-address-issues?pli=1&authuser=1",
-      label: "Address Change (Unable to drop off)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-amount-modification?pli=1&authuser=1",
-      label: "Change order details",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/rider-feedback?pli=1&authuser=1",
-      label: "Customer - Feedback",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/smoking-service?pli=1&authuser=1",
-      label: "ID check",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/unable-to-access-customer-buildingfloor?pli=1&authuser=1",
-      label:
-        "Customer - Issue accessing the premises (Cannot access the premises)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/courier-cant-take-the-next-action?pli=1&authuser=1",
-      label: "Customer - Issue accessing the premises (Unable to drop off)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-is-unreachable?pli=1&authuser=1",
-      label: "Unable to contact (Unreachable customer)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/delivery-pin-code?pli=1&authuser=1",
-      label: "Unable to contact (Unreachable customer - No pin code)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-delivery-address-issues?pli=1&authuser=1",
-      label: "Wrong address/pinpoint (Address is wrong)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-delivery-address-issues?pli=1&authuser=1",
-      label: "Wrong address/pinpoint (Unable to drop off)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-is-unreachable?pli=1&authuser=1",
-      label: "Unable to find location",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/missing-wrong-items-or-order?pli=1&authuser=1",
-      label: "Refuse to accept the order (Wrong order)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-refusal/customer-refusal-never-ordered-from-talabat?pli=1&authuser=1",
-      label: "Refuse to accept the order (Prank order)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-changed-his-mind?authuser=1",
-      label: "Refuse to accept the order (Requested to be canceled)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-was-delivered-by-another-courier-duplicate-order?pli=1&authuser=1",
-      label: "Refuse to accept the order (Duplicate order)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-refusal/customer-refusal-changed-promised-delivery-time-voucher-issues?authuser=1",
-      label: "Refuse to accept the order (Voucher issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-amount-modification?pli=1&authuser=1",
-      label:
-        "Refuse to accept the order (Cx is not aware of order’s modification)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/vendor-closed?pli=1&authuser=1",
-      label: "Closed",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/vendor-wont-prepare-the-order?pli=1&authuser=1",
-      label: "Device issue",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/vendor-wont-prepare-the-order?pli=1&authuser=1",
-      label: "Does not have order",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/vendor-refuses-to-return-the-money?pli=1&authuser=1",
-      label: "Partner - Feedback",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/courier-cant-access-the-vendor-premises?pli=1&authuser=1",
-      label: "Issue accessing the premises (Cannot access the premises)",
-    },
 
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/courier-cant-take-the-next-action?pli=1&authuser=1",
-      label: "Issue accessing the premises (Unable to pick up)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/late-preparation?pli=1&authuser=1",
-      label: "Late preparation",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-amount-modification?pli=1&authuser=1",
-      label: "Order modification",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-was-picked-up-by-another-courier?pli=1&authuser=1",
-      label: "Order taken by other rider",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/vendor-product-unavailable?pli=1&authuser=1",
-      label: "Product unavailable",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/vendor-wont-prepare-the-order?pli=1&authuser=1",
-      label: "Refuse to prepare the order",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/courier-unable-to-find-the-vendor?pli=1&authuser=1",
-      label: "Unable to locate the address",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/courier-accident-vehicle-issue?pli=1&authuser=1",
-      label: "Accident",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/out-of-scope-cases?pli=1&authuser=1",
-      label: "Asks for order assignment",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/troubleshooting?pli=1&authuser=1",
-      label: "App issue (Cannot see order details)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/troubleshooting?pli=1&authuser=1",
-      label: "App issue (Cannot pick up / drop off due to a tech issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/troubleshooting?pli=1&authuser=1",
-      label: "App issue (Unable to take a break)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/delivery-pin-code?pli=1&authuser=1",
-      label: "App issue (Rider / Pin code not working",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/delivery-pin-code?pli=1&authuser=1",
-      label: "App issue (Customer- Pin code not recived)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/break-process/break?authuser=1",
-      label: "Break status",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/break-process/odb?&pli=1&authuser=1",
-      label: "Break request (Regular break)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/break-process/tmp?pli=1&authuser=1",
-      label: "Break request (Temporary/paid break)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/couriers-contact-protocol?pli=1&authuser=1",
-      label: "Call back request",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/break-process/tmp?pli=1&authuser=1",
-      label: "COD issue (No change)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-refusal/customer-refusal-payment-issues?pli=1&authuser=1",
-      label: "COD issue (Cx wants to pay only partially)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-refusal/customer-refusal-payment-issues?pli=1&authuser=1",
-      label: "COD issue (Hijacked order)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-clicked-through?pli=1&authuser=1",
-      label: "Clicked through",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/break-process/break?pli=1&authuser=1",
-      label: "End break",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/courier-accident-vehicle-issue?pli=1&authuser=1",
-      label: "Equipment issue",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/out-of-scope-cases?pli=1&authuser=1",
-      label: "Shift adjustment",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (Due to distance (Pick-up))",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (Due to distance (Drop-off))",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (JO boycott)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/bad-weather?pli=1&authuser=1",
-      label: "Not willing to do the order (Due to weather)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (Order near ending time)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (Health issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (No cash to pay for the order)",
-    },
-
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/end-shift?pli=1&authuser=1",
-      label: "Not willing to do the order (Personal emergency/family issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (No reason/Courier refusal)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal?pli=1&authuser=1",
-      label: "Not willing to do the order (Rider is arrested/visa issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal/kw-highway-issue?authuser=1",
-      label: "Not willing to do the order (Bike rider will cross a highway)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/cases/customer-wants-to-change-to-self-pickup?pli=1&authuser=1",
-      label: "Updating status (Cx picked up the order by himself/herself)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/mantras/return-trip?pli=1&authuser=1",
-      label: "Updating status (Order has been returned back to the vendor)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-was-delivered-after-cancellation?pli=1&authuser=1",
-      label: "Updating status (Order has been delivered after cancellation)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/bad-weather?pli=1&authuser=1",
-      label: "Updating status (Informing order is late due to weather)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/complete-order-automatically?pli=1&authuser=1",
-      label: "Updating status (Order is completed by the system)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/order-was-delivered-by-another-courier-duplicate-order?pli=1&authuser=1",
-      label: "Updating status (Order is delivered by Vendor’s own rider)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/customer/mantras/customer-is-unreachable",
-      label: "Updating status (Waiting for the Cst/Cst is not coming outside)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/cases/late-preparation",
-      label: "Updating status (Order - packing/Sealing issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/vendor/mantras/test-orders",
-      label: "Updating status (Order is a test order)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/cases/end-shift?pli=1&authuser=1",
-      label: "Updating status (Personal/Family issue)",
-    },
-    {
-      value:
-        "https://sites.google.com/view/disp-kb-bpo/dispatching/courier/mantras/courier-refusal",
-      label: "Updating status (Health issue)",
-    },
-  ];
-
-  const optionsHtml = options
-    .map(
-      (option) =>
-        `<div class="dropdown-item" data-value="${option.value}" data-label="${option.label}" style="padding: 10px; cursor: pointer;">${option.label}</div>`
-    )
-    .join("");
-
-  const newElement = document.createElement("div");
-  newElement.style.width = "70%";
-  newElement.style.margin = "auto";
-  newElement.style.marginTop = "10px";
-  newElement.innerHTML = `
-    <div class="container" style="display: flex; gap: 20px;">
-      <div class="searchTemplatesContainer"style="width: 100%;">
-        <div class="container" style="position: relative;">
-          <div class="dropdown">
-            <input type="text" class="dropdown-search" placeholder="Search..." style="width: 100%; padding: 5px; border: 1px solid #ddd; border-radius: 4px;">
-            <div class="dropdown-menu" style="position: absolute; top: 100%; left: 0; width: 100%; border: 1px solid #ddd; border-top: none; max-height: 200px; overflow-y: auto; background: #fff; display: none;">
-              ${optionsHtml}
-            </div>
-          </div>
-        </div>
-      </div>
-      <button type="button" class="ant-btn button" id="openKbButton" style=" background-color: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">
-        Open in KB
-      </button>
-    </div>
-  `;
-
-  const interval = 100;
-  const checkInterval = setInterval(() => {
-    const targetNode = document.querySelector('[class*="infoPanelContainer"]');
-    if (targetNode) {
-      clearInterval(checkInterval);
-      if (targetNode.firstChild) {
-        targetNode.insertBefore(newElement, targetNode.firstChild);
-      } else {
-        targetNode.appendChild(newElement);
-      }
-
-      // Add event listener to the button
-      const button = document.getElementById("openKbButton");
-      button.addEventListener("click", () => {
-        const selectedItem = document.querySelector(".dropdown-item.selected");
-        if (selectedItem) {
-          window.open(selectedItem.dataset.value, "_blank");
-        } else {
-          alert("Please select an option.");
-        }
-      });
-
-      // Add event listener for the search input
-      const searchInput = document.querySelector(".dropdown-search");
-      searchInput.addEventListener("input", () => {
-        const filter = searchInput.value.toLowerCase();
-        const items = document.querySelectorAll(".dropdown-item");
-        items.forEach((item) => {
-          const text = item.textContent.toLowerCase();
-          item.style.display = text.includes(filter) ? "block" : "none";
-        });
-      });
-
-      // Add event listener for dropdown items
-      const dropdownItems = document.querySelectorAll(".dropdown-item");
-      dropdownItems.forEach((item) => {
-        item.addEventListener("click", () => {
-          // Update input value with selected item's label
-          const input = document.querySelector(".dropdown-search");
-          input.value = item.dataset.label;
-
-          // Highlight the selected item
-          dropdownItems.forEach((i) => i.classList.remove("selected"));
-          item.classList.add("selected");
-
-          // Hide the dropdown menu
-          document.querySelector(".dropdown-menu").style.display = "none";
-        });
-      });
-
-      // Show dropdown menu on focus
-      const dropdownSearch = document.querySelector(".dropdown-search");
-      dropdownSearch.addEventListener("focus", () => {
-        document.querySelector(".dropdown-menu").style.display = "block";
-      });
-
-      // Hide dropdown menu on blur
-      dropdownSearch.addEventListener("blur", () => {
-        setTimeout(() => {
-          document.querySelector(".dropdown-menu").style.display = "none";
-        }, 100);
-      });
-    }
-  }, interval);
-};
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR FreshChat FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -863,11 +448,12 @@ document.addEventListener("keydown", handleKeyboardInput, true);
 //FOR the notification function
 //--------------------------------------------------------------------------------------------------------------------------------------------
 
-let chatHasHold = [false, false, false];
-let chatHasClosure = [false, false, false];
-let chatHasQuestion = [false, false, false];
+let chatHasHold = [];
+let chatHasClosure = [];
+let chatHasQuestion = [];
 let chatHasRedispatch = [false, false, false];
 let lastNotificationTimes = {};
+let activeRiders = {};
 let activeChat = 0;
 let holdWhiteList = JSON.parse(localStorage.getItem("holdWhiteList"));
 let questionWhiteList = JSON.parse(localStorage.getItem("questionWhiteList"));
@@ -884,6 +470,7 @@ const checkForHold = () => {
     chatHasHold[activeChat] = false;
   }
 };
+
 const checkForQuestion = () => {
   if (containsWhitelistWord(lastAgentMessage(), questionWhiteList)) {
     console.log(`${activeChat} has question`);
@@ -918,18 +505,15 @@ const checkForRedispatch = () => {
   if (redispatchFound) {
     chatHasRedispatch[activeChat] = true;
   } else {
-    console.log(`${activeChat} has no redispatch action`);
     chatHasRedispatch[activeChat] = false;
   }
 };
 const attachRedispatchLabel = () => {
-  // Find the chat container
   const chatContainer = document.querySelector(
     '[data-testid="container-com.plugin.chat-box-view"]'
   );
 
   if (chatContainer) {
-    // Find the existing label if it exists
     let label = chatContainer.querySelector(".redispatch-label");
 
     if (chatHasRedispatch[activeChat]) {
@@ -937,7 +521,7 @@ const attachRedispatchLabel = () => {
         label = document.createElement("div");
         label.classList.add("redispatch-label");
         label.textContent =
-          "Redispatch Case detected, check BOA for delay sms in case redispatch";
+          "Redispatch Case detected, check Hurrier for delay sms in case redispatch";
         label.style.color = "yellow";
         label.style.textAlign = "center";
         label.style.backgroundColor = "green";
@@ -961,15 +545,15 @@ const attachRedispatchLabel = () => {
 };
 
 const markChats = () => {
-  // if (timeFrameSettings.allowTimeFrame === false) {
-  //   console.log("timeFrame is disabled");
-  //   return;
-  // }
+  if (timeFrameSettings.allowTimeFrame === false) {
+    console.log("timeFrame is disabled");
+    return;
+  }
   const activeChats = document.querySelectorAll('[data-testid^="ticket"]');
   if (activeChats.length === 0) {
     activeChat = 0;
   }
-  if (activeChats.length === 1 && activeChat === 0) {
+  if (activeChats.length === 1) {
     const firstChat = activeChats[0];
     if (firstChat && firstChat.id) {
       activeChat = firstChat.id;
@@ -985,6 +569,13 @@ const markChats = () => {
     if (!ChatWrapper.id) {
       ChatWrapper.id = `chat${Math.floor(Math.random() * 100000)}`;
 
+      activeRiders[ChatWrapper.id] = {
+        riderName: ChatWrapper.querySelector(".ant-typography").textContent,
+        date: new Date(),
+        active: true,
+      };
+      chrome.storage.local.set({ activeRiders: JSON.stringify(activeRiders) });
+
       startCheckingForElement(
         `#${ChatWrapper.id}`,
         (mutationsList, observer) => {
@@ -994,9 +585,6 @@ const markChats = () => {
           const [minutes, seconds] = time.split(":").map(Number);
           const totalSeconds = minutes * 60 + seconds;
           const currentTime = Date.now();
-          const hasUnread = ChatWrapper.querySelector('[class*="badge"]')
-            ? true
-            : false;
           let chatStatus = chatHasHold[ChatWrapper.id]
             ? 1
             : chatHasClosure[ChatWrapper.id]
@@ -1009,11 +597,10 @@ const markChats = () => {
             chatStatus === 1
               ? 10
               : chatStatus === 2
-              ? 150
+              ? 149
               : chatStatus === 3
               ? 60
-              : 90;
-
+              : 135;
           const maxThreshold =
             chatStatus === 1
               ? 0
@@ -1027,7 +614,8 @@ const markChats = () => {
             const lastNotification = lastNotificationTimes[ChatWrapper.id];
             const sameType =
               lastNotification && lastNotification.Type === chatStatus;
-            const coolDownTime = sameType ? 20000 : 0;
+
+            const coolDownTime = sameType ? 15000 : 0;
 
             if (
               !lastNotification ||
@@ -1042,13 +630,12 @@ const markChats = () => {
                 ChatWrapper.querySelector(".ant-typography").textContent;
               const imageUrl =
                 chatStatus === 1
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/hold%20no%20bg.png?alt=media&token=461b41e7-ba28-40fb-9a37-677dc964cfef"
+                  ? "icons/hold.png"
                   : chatStatus === 2
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/Close_Chat-removebg-preview%20(1).png?alt=media&token=8a4008e2-d62d-4a72-8e7a-399830b9cd1c"
+                  ? "icons/Close_Chat.png"
                   : chatStatus === 3
-                  ? "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/question%20no%20bg.png?alt=media&token=2259a230-5b96-4435-93e0-a8990d6da536"
-                  : "https://firebasestorage.googleapis.com/v0/b/reduxhttp-c9911.appspot.com/o/silence%20no%20bg.png?alt=media&token=e5b18fc6-7ef9-4b23-8c72-e1aaab0ef694";
-
+                  ? "icons/question.png"
+                  : "icons/Silence.png";
               sendNotification(chatText, imageUrl);
             }
           }
@@ -1060,6 +647,16 @@ const markChats = () => {
     const chatIds = Array.from(activeChats).map(
       (chatWrapper) => chatWrapper.id
     );
+    console.log(chatIds.length);
+
+    Object.keys(activeRiders).forEach((id) => {
+      if (!chatIds.includes(id)) {
+        activeRiders[id].active = false;
+        chrome.storage.local.set({
+          activeRiders: JSON.stringify(activeRiders),
+        });
+      }
+    });
     Object.keys(lastNotificationTimes).forEach((id) => {
       if (!chatIds.includes(id)) {
         delete lastNotificationTimes[id];
@@ -1067,6 +664,7 @@ const markChats = () => {
     });
   });
 };
+
 function lastAgentMessage() {
   // Get all message containers
   const messageContainers = document.querySelectorAll(
@@ -1081,13 +679,20 @@ function lastAgentMessage() {
       '[class*="messageDetails"] span:first-child'
     );
     if (senderDetailEL) {
-      const senderDetail = senderDetailEL.textContent;
-      if (senderDetail.endsWith("_Xceed")) {
-        const messageContent = container.querySelector(
-          '[data-testid="chat-bubble-paragraph"]'
-        ).innerText;
+      const senderDetail = senderDetailEL.textContent.toLowerCase();
 
-        agentMessages.push(messageContent.trim());
+      if (senderDetail.endsWith("_xceed")) {
+        let messageContent = "";
+
+        const paragraphs = container.querySelectorAll(
+          '[data-testid="chat-bubble-paragraph"]'
+        );
+
+        paragraphs.forEach((p) => {
+          messageContent += p.innerText.trim() + " ";
+        });
+
+        agentMessages.push(messageContent);
       }
     }
   });
@@ -1405,24 +1010,12 @@ const buildTimePanel = (WrapperEL) => {
     <div>
       <div class="clearfix">
         <h5 class="pull-left" style="margin-left: 15px;">
-          Half PDT<br>
-          <br>
           <span class="bold" style="color: #36c6d3;" id="DelaySMSTime"></span>
+            For More Time Data check Hurrier
         </h5>
       </div>
-      <hr>
     </div>
-    <div>
-      <div class="clearfix">
-        <h5 class="pull-left" style="margin-left: 15px;">
-          PDT+10mins <br>
-            <span id="alert">${alert}</span>
-            <br>
-          <span class="bold" style="color: #36c6d3;" id="PDT"></span>
-        </h5>
-      </div>
-      <hr>
-    </div>`;
+  `;
 
   panel.appendChild(panelBody);
   ParentEL.appendChild(panel);
@@ -1439,173 +1032,282 @@ const buildTimePanel = (WrapperEL) => {
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR PDTCalc FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
-function PDTCalc() {
-  const initialElement = document.querySelector(
-    '[ng-show="order.postDatedTime>0"]'
-  );
 
-  if (initialElement) {
-    const siblingElement =
-      Array.from(initialElement.nextElementSibling.classList).includes(
-        "col-md-12"
-      ) &&
-      Array.from(initialElement.nextElementSibling.classList).includes(
-        "clearfix"
+const extendBuffer = () => {
+  if (currentUrl.includes("ae.me")) {
+    return Array.from(
+      document.querySelectorAll(
+        ".sc-cmaqmh.kgXnBc.Tag-Label.Tag-Label--on-hold.Tag-Label--small"
       )
-        ? initialElement.nextElementSibling
-        : null;
-
-    if (siblingElement) {
-      const DateOrderMade =
-        siblingElement.querySelector(".ng-binding").textContent;
-      const deliveryDate = document.querySelector(
-        "h5.pull-left > .text-success"
-      ).textContent;
-
-      const minutes = parseInt(deliveryDate, 10);
-
-      const minutesToAdd = minutes / 2;
-      const options = {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        hour12: true,
-      };
-      const halfPDT = addMinutesToTime(
-        DateOrderMade,
-        minutesToAdd,
-        0
-      ).toLocaleTimeString([], options);
-
-      const PDT10 = createCombinedTime(DateOrderMade, minutes);
-      function createCombinedTime(dateOrderMade, deliveryDate) {
-        const combinedTime = addMinutesToTime(dateOrderMade, deliveryDate, 10);
-        return combinedTime;
-      }
-      displayTimeData(halfPDT, PDT10.toLocaleTimeString([], options));
-
-      const actionTime = getActionCreationTime();
-      if (actionTime) {
-        compareTimes(actionTime, PDT10);
-      } else {
-        console.log("Action creation time not found.");
-      }
-    } else {
-      console.log("Sibling element with specified class names not found.");
-    }
-  } else {
-    console.log("Initial element not found.");
+    ).some((node) => node.innerHTML.includes("Groceries"));
   }
-}
-function displayTimeData(halfPDT, combinedTime) {
-  // Define the ID or class that uniquely identifies the new panel
-  const uniqueIdentifier = "updatedTimeRow";
+  return false;
+};
 
-  // Check if the panel with the unique identifier already exists
-  if (document.getElementById(uniqueIdentifier)) {
-    const existingPanel = document.getElementById(uniqueIdentifier);
+const getTimeDifferenceInMinutes = (orderDate, pdtDate) =>
+  Math.floor((pdtDate - orderDate) / 60000);
 
-    // Update the existing panel content
-    existingPanel.querySelector("#DelaySMSTime").textContent = halfPDT;
-    existingPanel.querySelector("#PDT").textContent = combinedTime;
+const halveMinutesAndHandleSeconds = (totalMinutes) => ({
+  halvedMinutes: Math.floor(totalMinutes / 2),
+  halvedSeconds: totalMinutes % 2 === 1 ? 30 : 0,
+});
 
-    return; // Exit the function if the panel already exists
+const getTimeFromElement = (element) => {
+  const checkTime = element.querySelector(".sc-igZIGL").textContent; // Time like "Thu 05 Sep 08:24pm"
+  const timeMatch = checkTime.match(/(\d{2}):(\d{2})([ap]m)/);
+  if (timeMatch) {
+    return {
+      hours: parseInt(timeMatch[1], 10),
+      minutes: parseInt(timeMatch[2], 10),
+      period: timeMatch[3],
+    };
   }
+  return null;
+};
 
-  // Create the new panel container with the same styles as before
-  let ParentEL = document.createElement("div");
-  ParentEL.id = uniqueIdentifier;
-  ParentEL.className = "col-md-4";
+const convertToDateObject = (hours, minutes, period) => {
+  if (period === "pm" && hours !== 12) hours += 12;
+  if (period === "am" && hours === 12) hours = 0;
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0); // Set seconds and milliseconds to zero
+  return date;
+};
 
-  let panel = document.createElement("div");
-  panel.className = "panel panel-primary";
+const addMinutesToDate = (date, minutes) => {
+  date.setMinutes(date.getMinutes() + minutes);
+  return date;
+};
 
-  // Create panel heading
-  let panelHeading = document.createElement("div");
-  panelHeading.className = "panel-heading";
-  let panelTitle = document.createElement("h3");
-  panelTitle.className = "panel-title bold clearfix";
-  panelTitle.textContent = "Time Data";
-  panelHeading.appendChild(panelTitle);
-  panel.appendChild(panelHeading);
-  let alert = "";
+const formatTimeForHurrier = (date) => {
+  let hours = date.getHours();
+  let minutes = date.getMinutes();
+  let seconds = date.getSeconds();
+  let period = hours >= 12 ? "pm" : "am";
+  if (hours > 12) hours -= 12;
+  if (hours === 0) hours = 12;
+  minutes = minutes.toString().padStart(2, "0");
+  seconds = seconds.toString().padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}${period}`;
+};
 
-  // Create panel body
-  let panelBody = document.createElement("div");
-  panelBody.className = "panel-body";
-  if (
-    document
-      .querySelector(".bold.pull-right.media-object.ng-binding")
-      .textContent.includes("UAE")
-  ) {
-    alert =
-      "In UAE, for the Groceries not Tmart, the buffer is 30 minutes after the PDT";
-  } else {
-    alert = "";
-  }
-  // Create content for the panel
-  panelBody.innerHTML = `
-    <div>
-      <div class="clearfix">
-        <h5 class="pull-left" style="margin-left: 15px;">
-          Half PDT<br>
-          <br>
-          <span class="bold" style="color: #36c6d3;" id="DelaySMSTime">${halfPDT}</span>
-        </h5>
-      </div>
-      <hr>
-    </div>
-    <div>
-      <div class="clearfix">
-        <h5 class="pull-left" style="margin-left: 15px;">
-          PDT+10mins <br>
-          <span>${alert}</span>
-             <br> 
-          <span class="bold" style="color: #36c6d3;" id="PDT">${combinedTime}</span>
-        </h5>
-      </div>
-      <hr>
-    </div>`;
+const formatTimeForPDT = (date) => {
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const period = hours >= 12 ? "pm" : "am";
+  if (hours > 12) hours -= 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minutes}${period}`;
+};
 
-  panel.appendChild(panelBody);
-  ParentEL.appendChild(panel);
-
-  // Find the parent element where the new panel will be inserted
-  const parentElement = document.querySelector("#additionWrapper");
-
-  if (parentElement) {
-    parentElement.appendChild(ParentEL);
-  } else {
-    console.error("Parent element not found");
-  }
-}
-
-function addMinutesToTime(dateTimeStr, minutesToAdd, buffer) {
-  // Split the date and time parts, ignoring the day of the week if present
-  const parts = dateTimeStr.split(" ");
-  const monthDayYear = parts.slice(0, 3).join(" ");
-  const timePart = parts[3];
-  const period = parts[4];
-
-  // Reconstruct the date and time in a format that Date can understand
-  const parsedDateTime = new Date(`${monthDayYear} ${timePart} ${period}`);
-
-  if (isNaN(parsedDateTime)) {
-    console.error(`Invalid date: ${dateTimeStr}`);
-    return null;
-  }
-
-  // Add minutes
-  parsedDateTime.setMinutes(
-    parsedDateTime.getMinutes() + minutesToAdd + buffer
+const calculateHalfPDT = (orderTime, pdtTime) => {
+  const orderDate = convertToDateObject(
+    orderTime.hours,
+    orderTime.minutes,
+    orderTime.period
   );
-  parsedDateTime.setSeconds(Number.isInteger(minutesToAdd) ? 0 : 30);
+  const pdtDate = convertToDateObject(
+    pdtTime.hours,
+    pdtTime.minutes,
+    pdtTime.period
+  );
+  const minutesDiff = getTimeDifferenceInMinutes(orderDate, pdtDate);
+  const { halvedMinutes, halvedSeconds } =
+    halveMinutesAndHandleSeconds(minutesDiff);
+  const halfPDTDate = new Date(orderDate);
+  halfPDTDate.setMinutes(orderDate.getMinutes() + halvedMinutes);
+  halfPDTDate.setSeconds(halvedSeconds); // Set seconds for half PDT
+  return halfPDTDate;
+};
 
-  // Format the result back to the required time format (e.g., "hh:mm AM/PM")
+const extractTimeChecks = () => {
+  const interval = 300;
+  const checkInterval = setInterval(() => {
+    const targetNode = document.querySelector(".sc-kZkypy.hSGTDP");
+    if (targetNode) {
+      clearInterval(checkInterval);
+      const itemChecks = targetNode.querySelectorAll(".sc-dfauwV.uMHoj");
+      let orderTimePlaced;
 
-  return parsedDateTime;
-}
+      itemChecks.forEach((item) => {
+        extendBuffer();
+        const checkLabel = item.querySelector(".sc-hZDbVM").textContent;
+        const timeData = getTimeFromElement(item);
+        if (timeData && checkLabel === "Ordered at") {
+          orderTimePlaced = timeData;
+        }
+        if (timeData && checkLabel === "PDT") {
+          const pdtTime = timeData;
+          const halfPDTDate = calculateHalfPDT(orderTimePlaced, pdtTime);
+          const halvedPDTTime = formatTimeForHurrier(halfPDTDate);
 
+          const updatedDate = addMinutesToDate(
+            convertToDateObject(pdtTime.hours, pdtTime.minutes, pdtTime.period),
+            extendBuffer() ? 30 : 10
+          );
+          const updatedTime = formatTimeForPDT(updatedDate);
+
+          displayTime(
+            item.querySelector(".sc-igZIGL"),
+            halvedPDTTime,
+            updatedTime
+          );
+        }
+      });
+    }
+  }, interval);
+};
+
+const displayTime = (originalElement, halvedTime, updatedTime) => {
+  const timeChecksWrapper =
+    originalElement.closest(".sc-dfauwV.uMHoj").parentElement;
+  const secondWrapper = document.querySelector(
+    ".sc-eqUAAy.ga-DBet.AccordionContent-Content.AccordionContent-Content--expanded.AccordionContent-Root.sc-isexnS.cHnZj"
+  );
+
+  const createTimeElement = (label, time, id) => {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <div class="sc-dfauwV uMHoj" id=${id} style="margin-bottom: 50px;
+        padding: 10px;
+        border: 2px solid rgb(220, 220, 220);
+        border-radius: 15px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);">
+        <div class="sc-fPXMVe giIjDg Typography-Root sc-hZDbVM rkZxY" 
+        style="font-weight: bolder;font-size: 20px;">${label}</div>
+        <div class="sc-fPXMVe giIjDg Typography-Root sc-igZIGL kmKscO"  
+         style="font-weight: bolder;font-size: 24px; color:black">${time}</div>
+      </div>
+    `;
+    return div;
+  };
+
+  const halvedTimeElement = createTimeElement(
+    "Delay SMS",
+    halvedTime,
+    "halfPDT"
+  );
+  const updatedTimeElement = createTimeElement(
+    `PDT + ${extendBuffer() ? "30" : "10"}`,
+    updatedTime,
+    "PDT"
+  );
+
+  timeChecksWrapper.appendChild(halvedTimeElement);
+  timeChecksWrapper.appendChild(updatedTimeElement);
+  secondWrapper.appendChild(halvedTimeElement.cloneNode(true));
+  secondWrapper.appendChild(updatedTimeElement.cloneNode(true));
+};
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR activeRider
+//--------------------------------------------------------------------------------------------------------------------------------------------
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR riders timeChecks
+//--------------------------------------------------------------------------------------------------------------------------------------------
+const riderTimeChecks = () => {
+  return new Promise((resolve, reject) => {
+    const interval = 1000;
+    const checkInterval = setInterval(() => {
+      const targetNodes = document.querySelectorAll(".circle");
+
+      if (targetNodes.length > 0) {
+        clearInterval(checkInterval);
+        const extractedData = [];
+
+        targetNodes.forEach((delivery) => {
+          let courier;
+          const table = delivery.querySelector("table");
+
+          if (!table) {
+            console.log("No table found within the target node.");
+            return;
+          }
+
+          const rows = table.querySelectorAll(
+            'tbody[data-testid="TableBodyRoot"] tr[data-rowid]'
+          );
+
+          rows.forEach((row) => {
+            const event = row
+              .querySelector('td[data-columnid="event"] div span a')
+              ?.textContent.trim();
+            const time = row
+              .querySelector('td[data-columnid="time"] span')
+              ?.textContent.trim();
+            courier = row
+              .querySelector('td[data-columnid="courierMeta"] button')
+              ?.textContent.trim();
+
+            chrome.storage.local.get(["activeRiders"], function (result) {
+              if (result.activeRiders) {
+                try {
+                  const FetchedActiveRiders = JSON.parse(result.activeRiders);
+                  console.log(FetchedActiveRiders);
+
+                  Object.entries(FetchedActiveRiders).forEach(
+                    ([chatId, activeRider]) => {
+                      console.log(courier == activeRider.riderName);
+                      if (!activeRider.active) {
+                        const currentDate = new Date();
+                        const differenceInMs =
+                          currentDate - new Date(activeRider.date);
+                        const differenceInMinutes = Math.floor(
+                          differenceInMs / (1000 * 60)
+                        );
+
+                        if (differenceInMinutes > 8) {
+                          const updatedActiveRiders = {
+                            ...FetchedActiveRiders,
+                          };
+
+                          // Use the chatId to delete the inactive rider
+                          delete updatedActiveRiders[chatId];
+
+                          // Now update the chrome storage with the new data
+                          chrome.storage.local.set({
+                            activeRiders: JSON.stringify(updatedActiveRiders),
+                          });
+                          console.log(
+                            "Rider marked as inactive and deleted:",
+                            chatId
+                          );
+                        }
+                      }
+                    }
+                  );
+                } catch (error) {
+                  console.error("Error parsing activeRiders:", error);
+                }
+              } else {
+                console.log("No activeRiders found");
+              }
+            });
+            if (
+              event !== "Dispatched" &&
+              event !== undefined &&
+              event !== "Courier Notified" &&
+              event !== "Queued" &&
+              event !== "Cancelled"
+            ) {
+              extractedData.push({
+                time,
+                event,
+                courier,
+              });
+            }
+          });
+        });
+
+        console.log(extractedData);
+        resolve(extractedData); // Resolve the promise with the extracted data
+      }
+    }, interval);
+  });
+};
+
+//--------------------------------------------------------------------------------------------------------------------------------------------
+//FOR Previous SMS
+//--------------------------------------------------------------------------------------------------------------------------------------------
 const getPreviousSMS = () => {
   const Table = document
     .querySelector('[st-table="displaytaskLogHistory"]')
@@ -1633,122 +1335,6 @@ const getPreviousSMS = () => {
     }
   }
 };
-//--------------------------------------------------------------------------------------------------------------------------------------------
-//FOR LATE OWNER FUNCTION
-//--------------------------------------------------------------------------------------------------------------------------------------------
-function getActionCreationTime() {
-  // Select all rows in the table
-  const rows = document.querySelectorAll("tbody tr");
-
-  // Initialize variables to store the action times
-  let nearDropOffTime = null;
-  let courierLeftVendorTime = null;
-  let NearPickup = null;
-
-  // Iterate through the rows
-  for (const row of rows) {
-    // Get the action type from the third cell (index 2)
-    const actionType = row.cells[2].textContent.trim();
-    // Get the creation time from the second cell (index 1)
-    const creationTime = row.cells[1].textContent.trim();
-
-    // Check if the action is "Near Drop off"
-    if (actionType === "Near Drop off" && nearDropOffTime === null) {
-      nearDropOffTime = creationTime;
-      // If needed, return immediately or break the loop
-      return nearDropOffTime;
-    }
-
-    // Check if the action is "Courier Left Vendor"
-    if (
-      actionType === "Courier Left Vendor" &&
-      courierLeftVendorTime === null
-    ) {
-      courierLeftVendorTime = creationTime;
-      // If needed, return immediately or break the loop
-      return courierLeftVendorTime;
-    }
-
-    // Check if the action is "Near Pickup"
-    if (actionType === "Near Pickup" && NearPickup === null) {
-      NearPickup = creationTime;
-      return NearPickup;
-    }
-  }
-
-  if (nearDropOffTime) {
-    return nearDropOffTime;
-  } else if (courierLeftVendorTime) {
-    return courierLeftVendorTime;
-  } else if (NearPickup) {
-    return NearPickup;
-  } else {
-    return null; // Return null if neither action is found
-  }
-}
-
-function compareTimes(dateTimeStr, timeStr) {
-  // Helper function to parse a date time string (e.g., "Jul 29, 2024 02:33 AM Sun") into a Date object
-  function parseDateTimeString(dateTimeStr) {
-    // Split the date and time parts, ignoring the day of the week
-    const parts = dateTimeStr.split(" ");
-    const monthDayYear = parts.slice(0, 3).join(" ");
-    const timePart = parts[3];
-    const period = parts[4];
-
-    // Reconstruct the date and time in a format that Date can understand
-    const parsedDateTime = new Date(`${monthDayYear} ${timePart} ${period}`);
-
-    if (isNaN(parsedDateTime)) {
-      console.error(`Invalid date: ${dateTimeStr}`);
-      return null;
-    }
-
-    return parsedDateTime;
-  }
-
-  const riderDate = parseDateTimeString(dateTimeStr);
-  const PDT = timeStr;
-
-  let result;
-  if (riderDate && PDT) {
-    const differenceInMillis = riderDate - PDT;
-    const differenceInMinutes = Math.floor(differenceInMillis / 1000 / 60);
-
-    if (riderDate > PDT) {
-      result = `<div>
-                  <div class="clearfix">
-                    <h5 class="pull-left" style="margin-left: 15px;">
-                      <span class="bold" style="color: red;">There is Total Delay in delivery by ${differenceInMinutes} minutes.</span>
-                    </h5>
-                  </div>
-                  <hr>
-                </div>`;
-    } else {
-      result = `<div>
-                  <div class="clearfix">
-                    <h5 class="pull-left" style="margin-left: 15px;">
-                     <span class="bold" style="color: green;" >There is no Delay</span>
-                    </h5>
-                  </div>
-                  <hr>
-                </div>`;
-    }
-  } else {
-    result = "Invalid date or time format.";
-  }
-
-  const updatedTimeRow = document
-    .getElementById("updatedTimeRow")
-    .querySelector(".panel-body");
-  if (updatedTimeRow) {
-    const newContent = document.createElement("div");
-    newContent.innerHTML = result;
-    updatedTimeRow.appendChild(newContent);
-  } else {
-    console.error('Element with id "updatedTimeRow" not found.');
-  }
-}
 //--------------------------------------------------------------------------------------------------------------------------------------------
 //FOR CUSTOMER NUMBER FUNCTION
 //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -1949,67 +1535,3 @@ function copyToClipboard(text) {
       console.error("Could not copy text: ", err);
     });
 }
-
-//--------------------------------------------------------------------------------------------------------------------------------------------
-//FOR HIGHEST DELAY FUNCTION
-//--------------------------------------------------------------------------------------------------------------------------------------------
-// function saveOrder() {
-//   const orderIdElement = document.getElementById("orderId");
-//   const PDTElement = document.getElementById("PDT");
-
-//   if (orderIdElement && PDTElement) {
-//     const orderId = orderIdElement.textContent.trim();
-//     const PDT = PDTElement.textContent.trim();
-//     const timestamp = new Date().toISOString(); // Current time as ISO string
-
-//     // Get existing orders from storage
-//     chrome.storage.local.get("orders", (result) => {
-//       const orders = result.orders || [];
-
-//       // Add new order to the list
-//       orders.push({ orderId, PDT, timestamp });
-
-//       // Save the updated list back to storage
-//       chrome.storage.local.set({ orders }, () => {
-//         console.log("Order saved to chrome.storage:", {
-//           orderId,
-//           PDT,
-//           timestamp,
-//         });
-//       });
-//     });
-//   } else {
-//     console.error('Elements with IDs "orderId" or "PDT" not found.');
-//   }
-// }
-
-// function retrieveAndLogOrders() {
-//   chrome.storage.local.get("orders", (result) => {
-//     const orders = result.orders || [];
-//     if (orders.length > 0) {
-//       console.log("Retrieved orders from chrome.storage:", orders);
-//     } else {
-//       console.log("No orders found in chrome.storage.");
-//     }
-//   });
-// }
-
-// function cleanupExpiredOrders() {
-//   const expirationTime = 4 * 60 * 60 * 1000;
-//   const now = new Date().getTime();
-
-//   chrome.storage.local.get("orders", (result) => {
-//     const orders = result.orders || [];
-
-//     // Filter out orders older than 24 hours
-//     const updatedOrders = orders.filter((order) => {
-//       const orderTime = new Date(order.timestamp).getTime();
-//       return now - orderTime < expirationTime;
-//     });
-
-//     // Save the updated list back to storage
-//     chrome.storage.local.set({ orders: updatedOrders }, () => {
-//       console.log("Expired orders cleaned up.");
-//     });
-//   });
-// }

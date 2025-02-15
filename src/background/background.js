@@ -21,7 +21,6 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-console.log("hi");
 
 export const GETCOLLECTION = async (target) => {
   try {
@@ -103,7 +102,8 @@ export const QUERY = async (collectionName, propertyInDB, operation, value) => {
 };
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "showNotification") {
-    const notificationId = message.Name || `notification_${Date.now()}`;
+    const notificationId = message.title || `notification_${Date.now()}`;
+    console.log(notificationId);
 
     chrome.notifications.create(
       notificationId,
@@ -111,8 +111,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         type: "basic",
         iconUrl: message.icon,
         title: message.title,
-        message: "time frame alert",
-        priority: 2,
+        message: message.title,
+        priority: 1,
+        silent: true,
       },
       function (createdNotificationId) {
         setTimeout(function () {
